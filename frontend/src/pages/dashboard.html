@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — BudzetApp</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="topbar">
+        <div>
+          <h1 class="page-title" id="greeting">Dashboard</h1>
+          <p class="page-subtitle" id="periodLabel">Ładowanie...</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="period-tabs" id="periodTabs">
+            <div class="period-tab" data-period="week">Tydzień</div>
+            <div class="period-tab active" data-period="month">Miesiąc</div>
+            <div class="period-tab" data-period="year">Rok</div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="addTxBtn">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/></svg>
+            Dodaj transakcję
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body page-enter">
+
+      <!-- Metric cards -->
+      <div class="grid-4 mb-4" id="metricsGrid">
+        <div class="metric-card">
+          <div class="metric-label">Saldo</div>
+          <div class="metric-value" id="mBalance">—</div>
+          <div class="metric-delta neutral" id="mBalanceSub">ładowanie...</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Przychody</div>
+          <div class="metric-value positive" id="mIncome">—</div>
+          <div class="metric-delta neutral" id="mIncomeSub"></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Wydatki</div>
+          <div class="metric-value" id="mExpense">—</div>
+          <div class="metric-delta neutral" id="mExpenseSub"></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Transakcji</div>
+          <div class="metric-value" id="mCount">—</div>
+          <div class="metric-delta neutral">w tym okresie</div>
+        </div>
+      </div>
+
+      <!-- Main row -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start">
+
+        <!-- Left col -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Chart card -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <span class="card-title" style="margin:0">Przychody vs wydatki</span>
+              <div style="display:flex;gap:12px;font-size:11.5px;color:var(--text-muted)">
+                <span style="display:flex;align-items:center;gap:5px">
+                  <span style="width:10px;height:10px;border-radius:2px;background:var(--green);display:inline-block"></span>Przychody
+                </span>
+                <span style="display:flex;align-items:center;gap:5px">
+                  <span style="width:10px;height:10px;border-radius:2px;background:var(--red);opacity:.7;display:inline-block"></span>Wydatki
+                </span>
+              </div>
+            </div>
+            <div id="mainChart" style="height:140px;display:flex;align-items:flex-end;gap:6px">
+              <div class="loading-overlay" style="width:100%;padding:20px">
+                <div class="spinner"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent transactions -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <span class="card-title" style="margin:0">Ostatnie transakcje</span>
+              <a href="budget.html" style="font-size:12.5px;color:var(--accent);font-weight:500">
+                Pokaż wszystkie →
+              </a>
+            </div>
+            <div id="recentTx">
+              <div class="loading-overlay"><div class="spinner"></div></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right col -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Category breakdown -->
+          <div class="card">
+            <div class="card-title">Wydatki wg kategorii</div>
+            <div id="categoryBreakdown">
+              <div class="loading-overlay"><div class="spinner"></div></div>
+            </div>
+          </div>
+
+          <!-- Mini calendar -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <span class="card-title" style="margin:0" id="miniCalTitle"></span>
+              <a href="calendar.html" style="font-size:12px;color:var(--accent)">Otwórz →</a>
+            </div>
+            <div id="miniCal"></div>
+          </div>
+
+          <!-- Forecast -->
+          <div class="card">
+            <div class="card-title">Prognoza — następny miesiąc</div>
+            <div id="forecast">
+              <div class="loading-overlay"><div class="spinner"></div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Add Transaction Modal -->
+<div class="modal-overlay hidden" id="txModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="txModalTitle">Nowa transakcja</span>
+      <div class="modal-close" id="txModalClose">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </div>
+    </div>
+
+    <form id="txForm">
+      <!-- Type toggle -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+        <label style="cursor:pointer">
+          <input type="radio" name="type" value="expense" checked style="display:none" id="typeExpense">
+          <div class="type-btn expense" id="typeBtnExpense" style="padding:10px;border-radius:var(--radius);border:2px solid var(--red);background:var(--red-light);color:var(--red-text);text-align:center;font-size:13.5px;font-weight:500;transition:var(--transition)">
+            Wydatek
+          </div>
+        </label>
+        <label style="cursor:pointer">
+          <input type="radio" name="type" value="income" style="display:none" id="typeIncome">
+          <div class="type-btn income" id="typeBtnIncome" style="padding:10px;border-radius:var(--radius);border:2px solid var(--border);background:white;color:var(--text-secondary);text-align:center;font-size:13.5px;font-weight:500;transition:var(--transition)">
+            Przychód
+          </div>
+        </label>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Tytuł <span class="required">*</span></label>
+          <input class="form-input" type="text" id="txTitle" placeholder="np. Zakupy spożywcze" required>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label class="form-label">Kwota <span class="required">*</span></label>
+            <div class="input-group">
+              <input class="form-input" type="number" id="txAmount" placeholder="0.00"
+                     min="0" step="0.01" required style="text-align:right">
+              <span class="input-group-suffix">PLN</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input class="form-input" type="date" id="txDate">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Kategoria</label>
+          <select class="form-select" id="txCategory">
+            <option value="">Bez kategorii</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Opis</label>
+          <textarea class="form-textarea" id="txDesc" placeholder="Opcjonalne notatki..." rows="2"></textarea>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;color:var(--text-secondary)">
+          <input type="checkbox" id="txRecurring">
+          <span>Transakcja cykliczna</span>
+        </label>
+
+        <div id="recurringOpts" style="display:none">
+          <select class="form-select" id="txRecurrenceRule">
+            <option value="monthly">Miesięczna</option>
+            <option value="weekly">Tygodniowa</option>
+            <option value="yearly">Roczna</option>
+            <option value="daily">Codzienna</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="txCancelBtn">Anuluj</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="txSaveBtn">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { renderSidebar } from '../js/sidebar.js';
+import { budgetApi, txApi, eventsApi, categoriesApi, Auth } from '../js/api.js';
+import {
+  formatCurrency, formatDate, formatDateShort, initials,
+  openModal, closeModal, setLoading, showSuccess, showError,
+  currentPeriod, categoryBg
+} from '../js/utils.js';
+
+if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; }
+
+renderSidebar('dashboard.html');
+
+// Greeting
+const user = Auth.getUser();
+const hour = new Date().getHours();
+const greetWord = hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Witaj' : 'Dobry wieczór';
+document.getElementById('greeting').textContent =
+  user?.first_name ? `${greetWord}, ${user.first_name}` : greetWord;
+
+// ── State ────────────────────────────────────────────────────────
+let activePeriod = 'month';
+const { year, month } = currentPeriod();
+
+// ── Period selector ──────────────────────────────────────────────
+document.getElementById('periodTabs').addEventListener('click', e => {
+  const tab = e.target.closest('.period-tab');
+  if (!tab) return;
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  activePeriod = tab.dataset.period;
+  loadDashboard();
+});
+
+// ── Load all data ────────────────────────────────────────────────
+async function loadDashboard() {
+  const params = activePeriod === 'month' ? { year, month }
+               : activePeriod === 'year'  ? { year }
+               : { from: weekStart(), to: weekEnd() };
+
+  const [summary, chartData, categories, recentTxs, forecastData, events] = await Promise.allSettled([
+    budgetApi.summary(params),
+    budgetApi.chart({ year, granularity: activePeriod === 'year' ? 'month' : 'month' }),
+    budgetApi.byCategory({ ...params, type: 'expense' }),
+    txApi.list({ ...params, per_page: 8 }),
+    budgetApi.forecast({ months: 1 }),
+    eventsApi.list({ start: `${year}-${String(month).padStart(2,'0')}-01` }),
+  ]);
+
+  if (summary.status === 'fulfilled') renderMetrics(summary.value);
+  if (chartData.status === 'fulfilled') renderChart(chartData.value);
+  if (categories.status === 'fulfilled') renderCategories(categories.value);
+  if (recentTxs.status === 'fulfilled') renderRecentTx(recentTxs.value.items || []);
+  if (forecastData.status === 'fulfilled') renderForecast(forecastData.value);
+  if (events.status === 'fulfilled') renderMiniCal(events.value);
+
+  updatePeriodLabel();
+}
+
+function weekStart() {
+  const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1);
+  return d.toISOString().slice(0,10);
+}
+function weekEnd() {
+  const d = new Date(); d.setDate(d.getDate() - d.getDay() + 7);
+  return d.toISOString().slice(0,10);
+}
+
+function updatePeriodLabel() {
+  const labels = { month: `${new Date(year, month-1).toLocaleString('pl-PL',{month:'long'})} ${year}`,
+                   year: `Rok ${year}`, week: 'Ten tydzień' };
+  document.getElementById('periodLabel').textContent = labels[activePeriod] || '';
+}
+
+// ── Metrics ──────────────────────────────────────────────────────
+function renderMetrics(s) {
+  document.getElementById('mBalance').textContent  = formatCurrency(s.balance);
+  document.getElementById('mBalance').className =
+    `metric-value ${s.balance >= 0 ? 'positive' : 'negative'}`;
+  document.getElementById('mIncome').textContent   = formatCurrency(s.income_total);
+  document.getElementById('mExpense').textContent  = formatCurrency(s.expense_total);
+  document.getElementById('mCount').textContent    = s.transaction_count;
+  if (s.vs_prev_expense_pct !== null && s.vs_prev_expense_pct !== undefined) {
+    const v = s.vs_prev_expense_pct;
+    const el = document.getElementById('mExpenseSub');
+    el.textContent = `${v > 0 ? '+' : ''}${v}% vs poprzedni`;
+    el.className   = `metric-delta ${v > 0 ? 'down' : 'up'}`;
+  }
+}
+
+// ── Bar chart ────────────────────────────────────────────────────
+function renderChart(data) {
+  const el = document.getElementById('mainChart');
+  if (!data?.length) { el.innerHTML = '<div class="empty-state" style="padding:20px"><span class="text-muted text-sm">Brak danych</span></div>'; return; }
+
+  const maxVal = Math.max(...data.flatMap(d => [d.income, d.expense]), 1);
+  el.innerHTML = data.map(d => {
+    const ih = Math.round((d.income  / maxVal) * 110);
+    const eh = Math.round((d.expense / maxVal) * 110);
+    return `
+      <div class="bar-group" title="${d.label}: +${formatCurrency(d.income)} / -${formatCurrency(d.expense)}">
+        <div class="bar-pair">
+          <div class="bar income" style="height:${ih}px"></div>
+          <div class="bar expense" style="height:${eh}px"></div>
+        </div>
+        <div class="bar-label">${d.label.slice(-2)}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── Recent transactions ──────────────────────────────────────────
+function renderRecentTx(items) {
+  const el = document.getElementById('recentTx');
+  if (!items.length) {
+    el.innerHTML = `<div class="empty-state"><p class="empty-title">Brak transakcji</p>
+      <p class="empty-desc">Dodaj pierwszą transakcję klikając przycisk powyżej.</p></div>`;
+    return;
+  }
+  el.innerHTML = items.map(tx => `
+    <div class="tx-item">
+      <div class="tx-icon" style="background:${tx.type === 'income' ? 'var(--green-light)' : 'var(--red-light)'}">
+        ${tx.type === 'income' ? '↑' : '↓'}
+      </div>
+      <div class="tx-info">
+        <div class="tx-title truncate">${tx.title}</div>
+        <div class="tx-meta">${formatDateShort(tx.date)}</div>
+      </div>
+      <div class="tx-amount ${tx.type}">${tx.type === 'income' ? '+' : '-'}${formatCurrency(tx.amount)}</div>
+    </div>`).join('');
+}
+
+// ── Categories ────────────────────────────────────────────────────
+function renderCategories(items) {
+  const el = document.getElementById('categoryBreakdown');
+  if (!items?.length) {
+    el.innerHTML = '<p class="text-muted text-sm" style="padding:8px 0">Brak wydatków w tym okresie</p>';
+    return;
+  }
+  el.innerHTML = items.slice(0, 6).map(c => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12.5px;font-weight:500;color:var(--text-primary)">${c.name}</span>
+        <span style="font-size:12px;font-family:var(--font-mono);color:var(--text-secondary)">${c.pct}%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${c.pct}%;background:${c.color || 'var(--accent)'}"></div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Forecast ──────────────────────────────────────────────────────
+function renderForecast(data) {
+  const el = document.getElementById('forecast');
+  if (!data?.forecast?.length) { el.innerHTML = '<p class="text-muted text-sm">Brak danych historycznych</p>'; return; }
+  const f = data.forecast[0];
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:12.5px;color:var(--text-secondary)">Prognoza przychodów</span>
+        <span style="font-family:var(--font-mono);font-size:13px;color:var(--green)">${formatCurrency(f.income)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:12.5px;color:var(--text-secondary)">Prognoza wydatków</span>
+        <span style="font-family:var(--font-mono);font-size:13px;color:var(--red)">${formatCurrency(f.expense)}</span>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between">
+        <span style="font-size:13px;font-weight:500">Prognoza salda</span>
+        <span style="font-family:var(--font-mono);font-size:14px;font-weight:500;color:${f.balance >= 0 ? 'var(--green)' : 'var(--red)'}">${formatCurrency(f.balance)}</span>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted)">Szacowane na podstawie ${data.based_on_months} mies.</p>
+    </div>`;
+}
+
+// ── Mini calendar ────────────────────────────────────────────────
+function renderMiniCal(events) {
+  const today = new Date();
+  const y = today.getFullYear(), m = today.getMonth();
+  document.getElementById('miniCalTitle').textContent =
+    today.toLocaleString('pl-PL', { month: 'long', year: 'numeric' });
+
+  const firstDay = new Date(y, m, 1).getDay() || 7; // Mon=1
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const eventDays = new Set(events?.map(e => new Date(e.start).getDate()) || []);
+
+  const DAYS = ['Pn','Wt','Śr','Cz','Pt','So','Nd'];
+  let html = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center">`;
+  html += DAYS.map(d => `<div style="font-size:9.5px;color:var(--text-muted);padding:2px 0">${d}</div>`).join('');
+  for (let i = 1; i < firstDay; i++) html += '<div></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = d === today.getDate();
+    const hasEvent = eventDays.has(d);
+    html += `<div style="font-size:11px;padding:4px 2px;border-radius:4px;cursor:pointer;
+      ${isToday ? 'background:var(--sidebar-bg);color:white;font-weight:600' :
+        hasEvent ? 'background:var(--accent-light);color:var(--accent-text);font-weight:500' :
+        'color:var(--text-secondary)'}"
+      onclick="window.location.href='calendar.html'">${d}</div>`;
+  }
+  html += '</div>';
+  document.getElementById('miniCal').innerHTML = html;
+}
+
+// ── Transaction modal ─────────────────────────────────────────────
+const txModal = document.getElementById('txModal');
+let categories = [];
+
+async function loadCategories() {
+  try {
+    categories = await categoriesApi.list({ type: 'expense' });
+    const sel = document.getElementById('txCategory');
+    sel.innerHTML = '<option value="">Bez kategorii</option>' +
+      categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  } catch {}
+}
+
+document.getElementById('addTxBtn').addEventListener('click', () => {
+  loadCategories();
+  document.getElementById('txDate').value = new Date().toISOString().slice(0,10);
+  openModal(txModal);
+});
+
+document.getElementById('txModalClose').addEventListener('click', () => closeModal(txModal));
+document.getElementById('txCancelBtn').addEventListener('click',  () => closeModal(txModal));
+txModal.addEventListener('click', e => { if (e.target === txModal) closeModal(txModal); });
+
+// Type toggle visual
+document.querySelectorAll('input[name="type"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const isExpense = document.getElementById('typeExpense').checked;
+    document.getElementById('typeBtnExpense').style.cssText =
+      `padding:10px;border-radius:var(--radius);text-align:center;font-size:13.5px;font-weight:500;transition:var(--transition);` +
+      (isExpense ? 'border:2px solid var(--red);background:var(--red-light);color:var(--red-text)' :
+                   'border:2px solid var(--border);background:white;color:var(--text-secondary)');
+    document.getElementById('typeBtnIncome').style.cssText =
+      `padding:10px;border-radius:var(--radius);text-align:center;font-size:13.5px;font-weight:500;transition:var(--transition);` +
+      (!isExpense ? 'border:2px solid var(--green);background:var(--green-light);color:var(--green-text)' :
+                    'border:2px solid var(--border);background:white;color:var(--text-secondary)');
+    // Update category filter
+    loadCategories();
+  });
+});
+
+document.getElementById('txRecurring').addEventListener('change', function() {
+  document.getElementById('recurringOpts').style.display = this.checked ? 'block' : 'none';
+});
+
+document.getElementById('txForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('txSaveBtn');
+  const type = document.querySelector('input[name="type"]:checked').value;
+
+  const payload = {
+    title:       document.getElementById('txTitle').value.trim(),
+    amount:      document.getElementById('txAmount').value,
+    type,
+    date:        document.getElementById('txDate').value || new Date().toISOString(),
+    category_id: document.getElementById('txCategory').value || null,
+    description: document.getElementById('txDesc').value.trim(),
+    is_recurring: document.getElementById('txRecurring').checked,
+    recurrence_rule: document.getElementById('txRecurrenceRule').value,
+  };
+
+  if (!payload.title || !payload.amount) {
+    showError('Tytuł i kwota są wymagane.');
+    return;
+  }
+
+  setLoading(btn, true);
+  try {
+    await txApi.create(payload);
+    showSuccess('Transakcja zapisana!');
+    closeModal(txModal);
+    document.getElementById('txForm').reset();
+    loadDashboard();
+  } catch (err) {
+    showError(err.message || 'Błąd zapisu');
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>

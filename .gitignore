@@ -1,0 +1,38 @@
+# Sekrety — nigdy nie commituj!
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Docker
+*.log
+
+# Backupy bazy
+backup/
+*.sql.gz
+*.dump
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Uploads (pliki użytkowników)
+backend/uploads/
+frontend/src/uploads/

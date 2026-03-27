@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grupy — BudzetApp</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="topbar">
+        <div>
+          <h1 class="page-title">Grupy</h1>
+          <p class="page-subtitle">Zarządzaj wspólnym budżetem</p>
+        </div>
+        <button class="btn btn-primary btn-sm" id="createGroupBtn">+ Utwórz grupę</button>
+      </div>
+    </div>
+
+    <div class="page-body page-enter">
+      <div id="groupsGrid" class="grid-3">
+        <div class="loading-overlay" style="grid-column:1/-1"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Group detail panel (shown when group selected) -->
+      <div id="groupDetail" style="display:none;margin-top:16px">
+        <div class="topbar">
+          <div>
+            <h2 style="font-size:17px;font-weight:600" id="groupDetailName"></h2>
+            <p style="font-size:13px;color:var(--text-secondary)" id="groupDetailRole"></p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" id="inviteMemberBtn">+ Zaproś</button>
+            <button class="btn btn-ghost btn-sm" id="leaveGroupBtn" style="color:var(--red)">Opuść grupę</button>
+            <button class="btn btn-ghost btn-sm" id="closeDetailBtn">✕ Zamknij</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+          <div class="metric-card">
+            <div class="metric-label">Przychody grupy</div>
+            <div class="metric-value positive" id="gdIncome">—</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Wydatki grupy</div>
+            <div class="metric-value" id="gdExpense">—</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Saldo grupy</div>
+            <div class="metric-value" id="gdBalance">—</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:16px">
+          <!-- Members -->
+          <div class="card">
+            <div class="card-title">Członkowie</div>
+            <div id="membersList"></div>
+          </div>
+          <!-- Recent transactions -->
+          <div class="card">
+            <div class="card-title">Ostatnie transakcje grupy</div>
+            <div id="groupTxList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal-overlay hidden" id="groupModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Nowa grupa</span>
+      <div class="modal-close" id="groupModalClose">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </div>
+    </div>
+    <form id="groupForm">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Nazwa grupy <span class="required">*</span></label>
+          <input class="form-input" id="gName" type="text" placeholder="np. Rodzina Kowalskich">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Typ</label>
+          <select class="form-select" id="gType">
+            <option value="family">Rodzina</option>
+            <option value="company">Firma</option>
+            <option value="other">Inne</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opis</label>
+          <textarea class="form-textarea" id="gDesc" rows="2" placeholder="Opcjonalny opis..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="groupCancelBtn">Anuluj</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="groupSaveBtn">Utwórz</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Invite Modal -->
+<div class="modal-overlay hidden" id="inviteModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Zaproś członka</span>
+      <div class="modal-close" id="inviteModalClose">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </div>
+    </div>
+    <form id="inviteForm">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Adres email <span class="required">*</span></label>
+          <input class="form-input" id="invEmail" type="email" placeholder="email@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rola</label>
+          <select class="form-select" id="invRole">
+            <option value="member">Członek</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="inviteCancelBtn">Anuluj</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="inviteSaveBtn">Zaproś</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { renderSidebar } from '../js/sidebar.js';
+import { groupsApi, Auth } from '../js/api.js';
+import {
+  formatCurrency, formatDateShort, initials, openModal, closeModal,
+  setLoading, showSuccess, showError, confirmDialog
+} from '../js/utils.js';
+
+if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; }
+renderSidebar('groups.html');
+
+const groupModal  = document.getElementById('groupModal');
+const inviteModal = document.getElementById('inviteModal');
+let activeGroupId = null;
+
+// ── Load groups ───────────────────────────────────────────────────
+async function loadGroups() {
+  try {
+    const groups = await groupsApi.list();
+    const grid   = document.getElementById('groupsGrid');
+
+    if (!groups.length) {
+      grid.innerHTML = `
+        <div style="grid-column:1/-1">
+          <div class="empty-state">
+            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
+            </svg>
+            <p class="empty-title">Brak grup</p>
+            <p class="empty-desc">Utwórz pierwszą grupę, aby zarządzać wspólnym budżetem.</p>
+            <button class="btn btn-primary btn-sm" onclick="document.getElementById('createGroupBtn').click()">Utwórz grupę</button>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const TYPE_LABELS = { family: 'Rodzina', company: 'Firma', other: 'Inne' };
+    const ROLE_LABELS = { owner: 'Właściciel', admin: 'Admin', member: 'Członek' };
+
+    grid.innerHTML = groups.map(g => `
+      <div class="card" style="cursor:pointer;transition:var(--transition);hover:shadow-md"
+           onclick="openGroup(${g.id})"
+           onmouseenter="this.style.boxShadow='var(--shadow-md)'"
+           onmouseleave="this.style.boxShadow='var(--shadow-sm)'">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-light);
+               display:flex;align-items:center;justify-content:center;font-size:18px">
+            ${g.type === 'family' ? '👨‍👩‍👧' : g.type === 'company' ? '🏢' : '👥'}
+          </div>
+          <span class="badge ${g.my_role === 'owner' ? 'badge-green' : g.my_role === 'admin' ? 'badge-blue' : 'badge-gray'}">
+            ${ROLE_LABELS[g.my_role] || g.my_role}
+          </span>
+        </div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">${g.name}</div>
+        <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px">${TYPE_LABELS[g.type] || g.type}</div>
+        <div style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zM14.5 9a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM1.615 16.428a1.224 1.224 0 01-.569-1.175 6.002 6.002 0 0111.908 0c.058.467-.172.92-.57 1.174A9.953 9.953 0 017 18a9.953 9.953 0 01-5.385-1.572zM14.5 16h-.106c.07-.297.088-.611.048-.933a7.47 7.47 0 00-1.588-3.755 4.502 4.502 0 015.874 2.636.818.818 0 01-.36.98A7.465 7.465 0 0114.5 16z"/></svg>
+          ${g.member_count} ${g.member_count === 1 ? 'członek' : 'członków'}
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    showError('Błąd ładowania grup: ' + err.message);
+  }
+}
+
+// ── Open group detail ─────────────────────────────────────────────
+window.openGroup = async (gid) => {
+  activeGroupId = gid;
+  document.getElementById('groupDetail').style.display = 'block';
+
+  const [group, summary, txs] = await Promise.allSettled([
+    groupsApi.get(gid),
+    groupsApi.summary(gid),
+    groupsApi.transactions(gid, { per_page: 10 }),
+  ]);
+
+  if (group.status === 'fulfilled') {
+    const g = group.value;
+    document.getElementById('groupDetailName').textContent = g.name;
+    const ROLE_LABELS = { owner: 'Właściciel', admin: 'Administrator', member: 'Członek' };
+    document.getElementById('groupDetailRole').textContent = ROLE_LABELS[g.my_role] || g.my_role;
+    renderMembers(g.members || [], g.my_role);
+  }
+
+  if (summary.status === 'fulfilled') {
+    const s = summary.value;
+    document.getElementById('gdIncome').textContent  = formatCurrency(s.income_total);
+    document.getElementById('gdExpense').textContent = formatCurrency(s.expense_total);
+    const b = document.getElementById('gdBalance');
+    b.textContent = formatCurrency(s.balance);
+    b.className   = `metric-value ${s.balance >= 0 ? 'positive' : 'negative'}`;
+  }
+
+  if (txs.status === 'fulfilled') {
+    renderGroupTx(txs.value.items || []);
+  }
+
+  document.getElementById('groupDetail').scrollIntoView({ behavior: 'smooth' });
+};
+
+function renderMembers(members, myRole) {
+  const el = document.getElementById('membersList');
+  const ROLE_LABELS = { owner: 'Właściciel', admin: 'Admin', member: 'Członek' };
+  el.innerHTML = members.map(m => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bg)">
+      <div class="avatar" style="width:32px;height:32px;font-size:12px">${initials(m.first_name, m.last_name, m.email)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;truncate">${m.first_name ? `${m.first_name} ${m.last_name||''}`.trim() : m.email}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${m.email}</div>
+      </div>
+      <span class="badge ${m.role === 'owner' ? 'badge-green' : m.role === 'admin' ? 'badge-blue' : 'badge-gray'}" style="font-size:10px">
+        ${ROLE_LABELS[m.role] || m.role}
+      </span>
+    </div>`).join('');
+}
+
+function renderGroupTx(items) {
+  const el = document.getElementById('groupTxList');
+  if (!items.length) { el.innerHTML = '<p class="text-muted text-sm">Brak transakcji</p>'; return; }
+  el.innerHTML = items.map(tx => `
+    <div class="tx-item">
+      <div class="tx-icon" style="background:${tx.type === 'income' ? 'var(--green-light)' : 'var(--red-light)'}">
+        ${tx.type === 'income' ? '↑' : '↓'}
+      </div>
+      <div class="tx-info">
+        <div class="tx-title truncate">${tx.title}</div>
+        <div class="tx-meta">${formatDateShort(tx.date)}</div>
+      </div>
+      <div class="tx-amount ${tx.type}">${tx.type === 'income' ? '+' : '-'}${formatCurrency(tx.amount)}</div>
+    </div>`).join('');
+}
+
+// ── Group CRUD ────────────────────────────────────────────────────
+document.getElementById('createGroupBtn').addEventListener('click', () => {
+  document.getElementById('groupForm').reset();
+  openModal(groupModal);
+});
+
+document.getElementById('groupModalClose').addEventListener('click', () => closeModal(groupModal));
+document.getElementById('groupCancelBtn').addEventListener('click',  () => closeModal(groupModal));
+
+document.getElementById('groupForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('groupSaveBtn');
+  setLoading(btn, true);
+  try {
+    await groupsApi.create({
+      name:        document.getElementById('gName').value.trim(),
+      type:        document.getElementById('gType').value,
+      description: document.getElementById('gDesc').value.trim(),
+    });
+    showSuccess('Grupa utworzona!');
+    closeModal(groupModal);
+    loadGroups();
+  } catch (err) { showError(err.message); }
+  finally { setLoading(btn, false); }
+});
+
+// ── Invite ────────────────────────────────────────────────────────
+document.getElementById('inviteMemberBtn').addEventListener('click', () => {
+  document.getElementById('inviteForm').reset();
+  openModal(inviteModal);
+});
+
+document.getElementById('inviteModalClose').addEventListener('click', () => closeModal(inviteModal));
+document.getElementById('inviteCancelBtn').addEventListener('click',  () => closeModal(inviteModal));
+
+document.getElementById('inviteForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!activeGroupId) return;
+  const btn = document.getElementById('inviteSaveBtn');
+  setLoading(btn, true);
+  try {
+    await groupsApi.invite(activeGroupId, {
+      email: document.getElementById('invEmail').value.trim(),
+      role:  document.getElementById('invRole').value,
+    });
+    showSuccess('Zaproszono!');
+    closeModal(inviteModal);
+    openGroup(activeGroupId);
+  } catch (err) { showError(err.message); }
+  finally { setLoading(btn, false); }
+});
+
+// ── Leave group ───────────────────────────────────────────────────
+document.getElementById('leaveGroupBtn').addEventListener('click', async () => {
+  if (!activeGroupId) return;
+  const ok = await confirmDialog('Czy na pewno chcesz opuścić tę grupę?', 'Opuść grupę');
+  if (!ok) return;
+  try {
+    await groupsApi.leave(activeGroupId);
+    showSuccess('Opuściłeś grupę');
+    document.getElementById('groupDetail').style.display = 'none';
+    loadGroups();
+  } catch (err) { showError(err.message); }
+});
+
+document.getElementById('closeDetailBtn').addEventListener('click', () => {
+  document.getElementById('groupDetail').style.display = 'none';
+  activeGroupId = null;
+});
+
+loadGroups();
+</script>
+</body>
+</html>

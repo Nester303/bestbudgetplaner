@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faktury — BudzetApp</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="topbar">
+        <div>
+          <h1 class="page-title">Faktury</h1>
+          <p class="page-subtitle">Zarządzaj fakturami VAT</p>
+        </div>
+        <div class="topbar-actions">
+          <select class="form-select" id="statusFilter" style="width:auto;padding:7px 12px;font-size:13px">
+            <option value="">Wszystkie</option>
+            <option value="draft">Szkice</option>
+            <option value="unpaid">Nieopłacone</option>
+            <option value="paid">Opłacone</option>
+            <option value="cancelled">Anulowane</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="createInvoiceBtn">+ Nowa faktura</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body page-enter">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Numer</th>
+                <th>Nabywca</th>
+                <th>Data wystawienia</th>
+                <th>Termin płatności</th>
+                <th>Status</th>
+                <th style="text-align:right">Kwota brutto</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="invoicesTableBody">
+              <tr><td colspan="7"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Invoice Form Modal -->
+<div class="modal-overlay hidden" id="invoiceModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="invoiceModalTitle">Nowa faktura</span>
+      <div class="modal-close" id="invoiceModalClose">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </div>
+    </div>
+    <form id="invoiceForm">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="form-group">
+          <label class="form-label">Nabywca — nazwa</label>
+          <input class="form-input" id="invBuyerName" type="text" placeholder="Firma XYZ Sp. z o.o.">
+        </div>
+        <div class="form-group">
+          <label class="form-label">NIP nabywcy</label>
+          <input class="form-input" id="invBuyerNip" type="text" placeholder="0000000000">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Adres nabywcy</label>
+          <textarea class="form-textarea" id="invBuyerAddress" rows="2" placeholder="ul. Przykładowa 1&#10;00-001 Warszawa"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email nabywcy</label>
+          <input class="form-input" id="invBuyerEmail" type="email" placeholder="firma@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Waluta</label>
+          <select class="form-select" id="invCurrency">
+            <option value="PLN">PLN — Polski złoty</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="USD">USD — Dolar</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data wystawienia</label>
+          <input class="form-input" id="invIssueDate" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Termin płatności</label>
+          <input class="form-input" id="invDueDate" type="date">
+        </div>
+      </div>
+
+      <!-- Items table -->
+      <div style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label class="form-label" style="margin:0">Pozycje faktury</label>
+          <button type="button" class="btn btn-secondary btn-sm" id="addItemBtn">+ Dodaj pozycję</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr>
+                <th style="padding:8px 6px;text-align:left;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)">Nazwa</th>
+                <th style="padding:8px 6px;width:50px;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)">Jedn.</th>
+                <th style="padding:8px 6px;width:60px;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)">Ilość</th>
+                <th style="padding:8px 6px;width:100px;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)">Cena netto</th>
+                <th style="padding:8px 6px;width:70px;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)">VAT %</th>
+                <th style="padding:8px 6px;width:90px;text-align:right;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border)">Brutto</th>
+                <th style="width:32px;border-bottom:1px solid var(--border)"></th>
+              </tr>
+            </thead>
+            <tbody id="itemsTableBody"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" style="padding:10px 6px;text-align:right;font-weight:600;font-size:13px">Suma brutto:</td>
+                <td style="padding:10px 6px;text-align:right;font-weight:600;font-family:var(--font-mono);font-size:14px" id="totalGross">0,00 PLN</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">Uwagi</label>
+        <textarea class="form-textarea" id="invNotes" rows="2" placeholder="Opcjonalne uwagi..."></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="invoiceCancelBtn">Anuluj</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="invoiceSaveBtn">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { renderSidebar } from '../js/sidebar.js';
+import { invoicesApi, Auth } from '../js/api.js';
+import {
+  formatCurrency, formatDateShort, openModal, closeModal,
+  setLoading, showSuccess, showError, confirmDialog
+} from '../js/utils.js';
+
+if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; }
+renderSidebar('invoices.html');
+
+const invoiceModal = document.getElementById('invoiceModal');
+let items = [{ name: '', unit: 'szt.', qty: 1, unit_price_net: 0, vat_rate: 23 }];
+
+// ── Load invoices ─────────────────────────────────────────────────
+async function loadInvoices() {
+  const status = document.getElementById('statusFilter').value;
+  try {
+    const data = await invoicesApi.list(status ? { status } : {});
+    renderTable(data.items || []);
+  } catch (err) { showError(err.message); }
+}
+
+const STATUS_LABELS = { draft: 'Szkic', unpaid: 'Nieopłacona', paid: 'Opłacona', cancelled: 'Anulowana' };
+const STATUS_BADGES = { draft: 'badge-gray', unpaid: 'badge-amber', paid: 'badge-green', cancelled: 'badge-red' };
+
+function renderTable(invList) {
+  const tbody = document.getElementById('invoicesTableBody');
+  if (!invList.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+      <p class="empty-title">Brak faktur</p>
+      <p class="empty-desc">Utwórz pierwszą fakturę klikając "Nowa faktura".</p>
+    </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = invList.map(inv => `
+    <tr>
+      <td><span style="font-family:var(--font-mono);font-size:13px;font-weight:500">${inv.number}</span></td>
+      <td style="font-size:13.5px">${inv.buyer_name || '—'}</td>
+      <td style="color:var(--text-secondary);font-size:13px">${formatDateShort(inv.issue_date)}</td>
+      <td style="color:var(--text-secondary);font-size:13px">${formatDateShort(inv.due_date)}</td>
+      <td><span class="badge ${STATUS_BADGES[inv.status] || 'badge-gray'}">${STATUS_LABELS[inv.status] || inv.status}</span></td>
+      <td class="cell-number" style="font-weight:500">${formatCurrency(inv.gross_total, inv.currency)}</td>
+      <td>
+        <div style="display:flex;gap:4px;justify-content:flex-end">
+          <a class="btn btn-ghost btn-icon btn-sm" href="${invoicesApi.pdfUrl(inv.id)}" 
+             target="_blank" title="Pobierz PDF" style="color:var(--accent)">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5z" clip-rule="evenodd"/></svg>
+          </a>
+          ${inv.status === 'unpaid' ? `
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="markPaid(${inv.id})" title="Oznacz jako opłacona" style="color:var(--green)">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+          </button>` : ''}
+          ${['draft','unpaid'].includes(inv.status) ? `
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="deleteInvoice(${inv.id})" title="Usuń" style="color:var(--red)">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd"/></svg>
+          </button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+window.markPaid = async (id) => {
+  const ok = await confirmDialog('Oznaczyć fakturę jako opłaconą?', 'Zmień status');
+  if (!ok) return;
+  try { await invoicesApi.setStatus(id, 'paid'); showSuccess('Oznaczono jako opłaconą'); loadInvoices(); }
+  catch (e) { showError(e.message); }
+};
+
+window.deleteInvoice = async (id) => {
+  const ok = await confirmDialog('Czy na pewno chcesz usunąć tę fakturę?', 'Usuń fakturę');
+  if (!ok) return;
+  try { await invoicesApi.delete(id); showSuccess('Usunięto'); loadInvoices(); }
+  catch (e) { showError(e.message); }
+};
+
+document.getElementById('statusFilter').addEventListener('change', loadInvoices);
+
+// ── Invoice form ──────────────────────────────────────────────────
+document.getElementById('createInvoiceBtn').addEventListener('click', () => {
+  document.getElementById('invoiceForm').reset();
+  items = [{ name: '', unit: 'szt.', qty: 1, unit_price_net: 0, vat_rate: 23 }];
+  document.getElementById('invIssueDate').value = new Date().toISOString().slice(0,10);
+  const due = new Date(); due.setDate(due.getDate() + 14);
+  document.getElementById('invDueDate').value = due.toISOString().slice(0,10);
+  renderItems();
+  openModal(invoiceModal);
+});
+
+document.getElementById('invoiceModalClose').addEventListener('click', () => closeModal(invoiceModal));
+document.getElementById('invoiceCancelBtn').addEventListener('click', () => closeModal(invoiceModal));
+
+document.getElementById('addItemBtn').addEventListener('click', () => {
+  items.push({ name: '', unit: 'szt.', qty: 1, unit_price_net: 0, vat_rate: 23 });
+  renderItems();
+});
+
+function renderItems() {
+  const tbody = document.getElementById('itemsTableBody');
+  const currency = document.getElementById('invCurrency').value || 'PLN';
+  let totalGross = 0;
+
+  tbody.innerHTML = items.map((item, idx) => {
+    const gross = item.qty * item.unit_price_net * (1 + item.vat_rate / 100);
+    totalGross += gross;
+    return `
+      <tr>
+        <td style="padding:5px 4px"><input class="form-input" style="padding:6px 8px;font-size:12.5px" value="${item.name}" oninput="updateItem(${idx},'name',this.value)" placeholder="Nazwa usługi/towaru"></td>
+        <td style="padding:5px 4px"><input class="form-input" style="padding:6px 8px;font-size:12.5px;width:50px" value="${item.unit}" oninput="updateItem(${idx},'unit',this.value)"></td>
+        <td style="padding:5px 4px"><input class="form-input" style="padding:6px 8px;font-size:12.5px;width:55px;text-align:right" type="number" min="0" step="0.01" value="${item.qty}" oninput="updateItem(${idx},'qty',+this.value)"></td>
+        <td style="padding:5px 4px"><input class="form-input" style="padding:6px 8px;font-size:12.5px;width:95px;text-align:right" type="number" min="0" step="0.01" value="${item.unit_price_net}" oninput="updateItem(${idx},'unit_price_net',+this.value)"></td>
+        <td style="padding:5px 4px">
+          <select class="form-select" style="padding:6px 8px;font-size:12.5px;width:65px" onchange="updateItem(${idx},'vat_rate',+this.value)">
+            ${[0,5,8,23].map(r => `<option value="${r}" ${r===item.vat_rate?'selected':''}>${r}%</option>`).join('')}
+          </select>
+        </td>
+        <td style="padding:5px 4px;text-align:right;font-family:var(--font-mono);font-size:12.5px;font-weight:500">${gross.toFixed(2)}</td>
+        <td style="padding:5px 4px">
+          ${items.length > 1 ? `<button type="button" class="btn btn-ghost btn-icon btn-sm" onclick="removeItem(${idx})" style="color:var(--red)">×</button>` : ''}
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('totalGross').textContent = `${totalGross.toFixed(2)} ${currency}`;
+}
+
+window.updateItem = (idx, field, value) => { items[idx][field] = value; renderItems(); };
+window.removeItem = (idx) => { items.splice(idx, 1); renderItems(); };
+document.getElementById('invCurrency').addEventListener('change', renderItems);
+
+document.getElementById('invoiceForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('invoiceSaveBtn');
+  const payload = {
+    buyer_name:    document.getElementById('invBuyerName').value.trim(),
+    buyer_nip:     document.getElementById('invBuyerNip').value.trim(),
+    buyer_address: document.getElementById('invBuyerAddress').value.trim(),
+    buyer_email:   document.getElementById('invBuyerEmail').value.trim(),
+    currency:      document.getElementById('invCurrency').value,
+    issue_date:    document.getElementById('invIssueDate').value,
+    due_date:      document.getElementById('invDueDate').value,
+    notes:         document.getElementById('invNotes').value.trim(),
+    items,
+  };
+  setLoading(btn, true);
+  try {
+    await invoicesApi.create(payload);
+    showSuccess('Faktura zapisana!');
+    closeModal(invoiceModal);
+    loadInvoices();
+  } catch (err) { showError(err.message); }
+  finally { setLoading(btn, false); }
+});
+
+loadInvoices();
+renderItems();
+</script>
+</body>
+</html>

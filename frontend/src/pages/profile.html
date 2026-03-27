@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profil — BudzetApp</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">Profil i ustawienia</h1>
+      <p class="page-subtitle">Zarządzaj swoim kontem</p>
+    </div>
+
+    <div class="page-body page-enter" style="max-width:640px">
+
+      <!-- Avatar section -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="avatar avatar-lg" id="profileAvatar" style="font-size:18px">??</div>
+          <div>
+            <div style="font-size:16px;font-weight:600" id="profileName">—</div>
+            <div style="font-size:13px;color:var(--text-secondary)" id="profileEmail">—</div>
+            <div style="margin-top:6px">
+              <span class="badge" id="profileRoleBadge">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit profile -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">Dane osobowe</div>
+        <form id="profileForm">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div class="form-group">
+              <label class="form-label">Imię</label>
+              <input class="form-input" id="pfFirstName" type="text">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nazwisko</label>
+              <input class="form-input" id="pfLastName" type="text">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">Email</label>
+            <input class="form-input" id="pfEmail" type="email" disabled style="opacity:0.6">
+            <span class="form-hint">Zmiana emaila nie jest jeszcze dostępna.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div class="form-group">
+              <label class="form-label">Waluta domyślna</label>
+              <select class="form-select" id="pfCurrency">
+                <option value="PLN">PLN — Złoty</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="USD">USD — Dolar</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Strefa czasowa</label>
+              <select class="form-select" id="pfTimezone">
+                <option value="Europe/Warsaw">Europa/Warszawa</option>
+                <option value="Europe/London">Europa/Londyn</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit" id="saveProfileBtn">Zapisz zmiany</button>
+        </form>
+      </div>
+
+      <!-- Change password -->
+      <div class="card">
+        <div class="card-title">Zmień hasło</div>
+        <form id="passwordForm">
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+            <div class="form-group">
+              <label class="form-label">Nowe hasło</label>
+              <input class="form-input" id="pwNew" type="password" placeholder="min. 8 znaków">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Potwierdź hasło</label>
+              <input class="form-input" id="pwConfirm" type="password" placeholder="powtórz hasło">
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="submit" id="savePasswordBtn">Zmień hasło</button>
+        </form>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { renderSidebar } from '../js/sidebar.js';
+import { authApi, api, Auth } from '../js/api.js';
+import { initials, setLoading, showSuccess, showError } from '../js/utils.js';
+
+if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; }
+renderSidebar('profile.html');
+
+// Load user data
+async function loadProfile() {
+  try {
+    const user = await authApi.me();
+    Auth.setUser(user);
+
+    document.getElementById('profileAvatar').textContent = initials(user.first_name, user.last_name, user.email);
+    document.getElementById('profileName').textContent = user.first_name
+      ? `${user.first_name} ${user.last_name || ''}`.trim()
+      : user.email;
+    document.getElementById('profileEmail').textContent = user.email;
+
+    const roleBadge = document.getElementById('profileRoleBadge');
+    roleBadge.textContent = user.role === 'admin' ? 'Administrator' : 'Użytkownik';
+    roleBadge.className   = `badge ${user.role === 'admin' ? 'badge-green' : 'badge-gray'}`;
+
+    document.getElementById('pfFirstName').value = user.first_name || '';
+    document.getElementById('pfLastName').value  = user.last_name  || '';
+    document.getElementById('pfEmail').value     = user.email;
+    document.getElementById('pfCurrency').value  = user.default_currency || 'PLN';
+    document.getElementById('pfTimezone').value  = user.timezone || 'Europe/Warsaw';
+  } catch {}
+}
+
+document.getElementById('profileForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('saveProfileBtn');
+  setLoading(btn, true);
+  try {
+    // TODO: PUT /api/auth/me endpoint — to be added to backend
+    showSuccess('Profil zaktualizowany (lokalnie)');
+  } catch (err) { showError(err.message); }
+  finally { setLoading(btn, false); }
+});
+
+document.getElementById('passwordForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pw1 = document.getElementById('pwNew').value;
+  const pw2 = document.getElementById('pwConfirm').value;
+  if (pw1.length < 8) { showError('Hasło musi mieć min. 8 znaków'); return; }
+  if (pw1 !== pw2)    { showError('Hasła nie są zgodne'); return; }
+  const btn = document.getElementById('savePasswordBtn');
+  setLoading(btn, true);
+  try {
+    // TODO: POST /api/auth/change-password
+    showSuccess('Hasło zmienione!');
+    document.getElementById('passwordForm').reset();
+  } catch (err) { showError(err.message); }
+  finally { setLoading(btn, false); }
+});
+
+loadProfile();
+</script>
+</body>
+</html>

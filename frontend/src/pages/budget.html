@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planer Budżetu — BudzetApp</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="topbar">
+        <div>
+          <h1 class="page-title">Planer Budżetu</h1>
+          <p class="page-subtitle" id="periodLabel">—</p>
+        </div>
+        <div class="topbar-actions">
+          <select class="form-select" id="monthSel" style="width:auto;padding:7px 12px;font-size:13px"></select>
+          <select class="form-select" id="yearSel"  style="width:auto;padding:7px 12px;font-size:13px"></select>
+          <button class="btn btn-primary btn-sm" id="addTxBtn">+ Dodaj transakcję</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body page-enter">
+      <!-- Summary row -->
+      <div class="grid-3 mb-4">
+        <div class="metric-card">
+          <div class="metric-label">Przychody</div>
+          <div class="metric-value positive" id="mIncome">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Wydatki</div>
+          <div class="metric-value" id="mExpense">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Bilans</div>
+          <div class="metric-value" id="mBalance">—</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start">
+
+        <!-- Transactions table -->
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+            <span class="card-title" style="margin:0">Transakcje</span>
+            <div style="display:flex;gap:8px">
+              <select class="form-select" id="filterType" style="width:auto;padding:6px 10px;font-size:12.5px">
+                <option value="">Wszystkie</option>
+                <option value="income">Przychody</option>
+                <option value="expense">Wydatki</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tytuł</th>
+                  <th>Kategoria</th>
+                  <th>Data</th>
+                  <th style="text-align:right">Kwota</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="txTableBody">
+                <tr><td colspan="5"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="txPagination" style="padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--text-muted)"></div>
+        </div>
+
+        <!-- Right sidebar -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Category chart -->
+          <div class="card">
+            <div class="card-title">Wydatki wg kategorii</div>
+            <div id="catChart"></div>
+          </div>
+
+          <!-- Recurring -->
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <span class="card-title" style="margin:0">Cykliczne</span>
+            </div>
+            <div id="recurringList">
+              <div class="loading-overlay" style="padding:20px"><div class="spinner"></div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Transaction Modal (reuse from dashboard structure) -->
+<div class="modal-overlay hidden" id="txModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="txModalTitle">Nowa transakcja</span>
+      <div class="modal-close" id="txModalClose">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </div>
+    </div>
+    <form id="txForm">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <label style="cursor:pointer">
+          <input type="radio" name="type" value="expense" checked style="display:none" id="typeExpense">
+          <div id="typeBtnExpense" style="padding:9px;border-radius:var(--radius);border:2px solid var(--red);background:var(--red-light);color:var(--red-text);text-align:center;font-size:13px;font-weight:500">Wydatek</div>
+        </label>
+        <label style="cursor:pointer">
+          <input type="radio" name="type" value="income" style="display:none" id="typeIncome">
+          <div id="typeBtnIncome" style="padding:9px;border-radius:var(--radius);border:2px solid var(--border);background:white;color:var(--text-secondary);text-align:center;font-size:13px;font-weight:500">Przychód</div>
+        </label>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div class="form-group">
+          <label class="form-label">Tytuł</label>
+          <input class="form-input" id="txTitle" type="text" required>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label class="form-label">Kwota</label>
+            <div class="input-group">
+              <input class="form-input" id="txAmount" type="number" min="0" step="0.01" style="text-align:right">
+              <span class="input-group-suffix">PLN</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input class="form-input" id="txDate" type="date">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kategoria</label>
+          <select class="form-select" id="txCategory"><option value="">Bez kategorii</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opis</label>
+          <textarea class="form-textarea" id="txDesc" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger btn-sm hidden" id="txDeleteBtn">Usuń</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="txCancelBtn">Anuluj</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="txSaveBtn">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { renderSidebar } from '../js/sidebar.js';
+import { txApi, budgetApi, categoriesApi, Auth } from '../js/api.js';
+import {
+  formatCurrency, formatDateShort, openModal, closeModal,
+  setLoading, showSuccess, showError, confirmDialog, currentPeriod
+} from '../js/utils.js';
+
+if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; }
+renderSidebar('budget.html');
+
+const { year: curYear, month: curMonth } = currentPeriod();
+let page = 1, totalPages = 1;
+let editingId = null;
+let categories = [];
+
+// ── Period selectors ─────────────────────────────────────────────
+const monthSel = document.getElementById('monthSel');
+const yearSel  = document.getElementById('yearSel');
+const MONTHS   = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec',
+                  'Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+
+MONTHS.forEach((m, i) => {
+  const o = new Option(m, i+1);
+  if (i+1 === curMonth) o.selected = true;
+  monthSel.appendChild(o);
+});
+for (let y = curYear; y >= curYear - 4; y--) {
+  const o = new Option(y, y);
+  if (y === curYear) o.selected = true;
+  yearSel.appendChild(o);
+}
+
+monthSel.addEventListener('change', () => { page = 1; loadAll(); });
+yearSel.addEventListener('change',  () => { page = 1; loadAll(); });
+document.getElementById('filterType').addEventListener('change', () => { page = 1; loadAll(); });
+
+function getParams() {
+  return { year: +yearSel.value, month: +monthSel.value };
+}
+
+// ── Load data ────────────────────────────────────────────────────
+async function loadAll() {
+  const p = getParams();
+  document.getElementById('periodLabel').textContent =
+    `${MONTHS[p.month-1]} ${p.year}`;
+
+  const type = document.getElementById('filterType').value;
+  const txParams = { ...p, page, per_page: 20, ...(type && { type }) };
+
+  const [summary, txs, cats, recurring] = await Promise.allSettled([
+    budgetApi.summary(p),
+    txApi.list(txParams),
+    budgetApi.byCategory({ ...p, type: 'expense' }),
+    budgetApi.recurring(),
+  ]);
+
+  if (summary.status   === 'fulfilled') renderMetrics(summary.value);
+  if (txs.status       === 'fulfilled') renderTable(txs.value);
+  if (cats.status      === 'fulfilled') renderCatChart(cats.value);
+  if (recurring.status === 'fulfilled') renderRecurring(recurring.value);
+}
+
+function renderMetrics(s) {
+  document.getElementById('mIncome').textContent  = formatCurrency(s.income_total);
+  document.getElementById('mExpense').textContent = formatCurrency(s.expense_total);
+  const b = document.getElementById('mBalance');
+  b.textContent = formatCurrency(s.balance);
+  b.className   = `metric-value ${s.balance >= 0 ? 'positive' : 'negative'}`;
+}
+
+function renderTable({ items, total, pages: tp }) {
+  totalPages = tp || 1;
+  const tbody = document.getElementById('txTableBody');
+  if (!items?.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><p class="empty-title">Brak transakcji</p><p class="empty-desc">Dodaj pierwszą transakcję w tym okresie.</p></div></td></tr>`;
+    document.getElementById('txPagination').innerHTML = '';
+    return;
+  }
+  tbody.innerHTML = items.map(tx => `
+    <tr>
+      <td>
+        <div style="font-weight:500;font-size:13.5px">${tx.title}</div>
+        ${tx.description ? `<div style="font-size:11.5px;color:var(--text-muted)">${tx.description}</div>` : ''}
+        ${tx.is_recurring ? '<span class="badge badge-blue" style="font-size:10px;margin-top:2px">↺ cykliczna</span>' : ''}
+      </td>
+      <td><span style="font-size:12.5px;color:var(--text-secondary)">—</span></td>
+      <td style="color:var(--text-secondary);font-size:12.5px">${formatDateShort(tx.date)}</td>
+      <td class="cell-number" style="color:${tx.type === 'income' ? 'var(--green)' : 'var(--red)'}">
+        ${tx.type === 'income' ? '+' : '-'}${formatCurrency(tx.amount)}
+      </td>
+      <td style="text-align:right">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="editTx(${tx.id})" title="Edytuj">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z"/><path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z"/></svg>
+        </button>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('txPagination').innerHTML = `
+    <span>Łącznie: <strong>${total}</strong></span>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-secondary btn-sm" onclick="changePage(-1)" ${page <= 1 ? 'disabled' : ''}>← Poprz.</button>
+      <span style="padding:0 8px;line-height:28px">${page} / ${totalPages}</span>
+      <button class="btn btn-secondary btn-sm" onclick="changePage(1)" ${page >= totalPages ? 'disabled' : ''}>Nast. →</button>
+    </div>`;
+}
+
+window.changePage = (dir) => { page = Math.max(1, Math.min(totalPages, page + dir)); loadAll(); };
+
+function renderCatChart(items) {
+  const el = document.getElementById('catChart');
+  if (!items?.length) { el.innerHTML = '<p class="text-muted text-sm">Brak wydatków</p>'; return; }
+  el.innerHTML = items.slice(0,5).map(c => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:12px;font-weight:500">${c.name}</span>
+        <span style="font-size:11.5px;font-family:var(--font-mono);color:var(--text-secondary)">${formatCurrency(c.total)}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${c.pct}%;background:${c.color||'var(--accent)'}"></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderRecurring(items) {
+  const el = document.getElementById('recurringList');
+  if (!items?.length) { el.innerHTML = '<p class="text-muted text-sm">Brak cyklicznych</p>'; return; }
+  el.innerHTML = items.slice(0,5).map(tx => `
+    <div class="tx-item">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;truncate">${tx.title}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${tx.recurrence_rule || 'cykliczna'}</div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:13px;color:${tx.type==='income'?'var(--green)':'var(--red)'}">
+        ${formatCurrency(tx.amount)}
+      </div>
+    </div>`).join('');
+}
+
+// ── Categories for modal ──────────────────────────────────────────
+async function loadCats() {
+  try {
+    categories = await categoriesApi.list();
+    const sel = document.getElementById('txCategory');
+    sel.innerHTML = '<option value="">Bez kategorii</option>' +
+      categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  } catch {}
+}
+
+// ── Modal ─────────────────────────────────────────────────────────
+const txModal = document.getElementById('txModal');
+document.getElementById('addTxBtn').addEventListener('click', () => {
+  editingId = null;
+  document.getElementById('txModalTitle').textContent = 'Nowa transakcja';
+  document.getElementById('txForm').reset();
+  document.getElementById('txDeleteBtn').classList.add('hidden');
+  document.getElementById('txDate').value = new Date().toISOString().slice(0,10);
+  loadCats();
+  openModal(txModal);
+});
+
+document.getElementById('txModalClose').addEventListener('click', () => closeModal(txModal));
+document.getElementById('txCancelBtn').addEventListener('click',  () => closeModal(txModal));
+txModal.addEventListener('click', e => { if (e.target === txModal) closeModal(txModal); });
+
+window.editTx = async (id) => {
+  editingId = id;
+  await loadCats();
+  try {
+    const tx = (await txApi.list({ per_page: 1000 })).items?.find(t => t.id === id);
+    if (!tx) return;
+    document.getElementById('txModalTitle').textContent = 'Edytuj transakcję';
+    document.getElementById('txTitle').value  = tx.title;
+    document.getElementById('txAmount').value = tx.amount;
+    document.getElementById('txDate').value   = tx.date?.slice(0,10) || '';
+    document.getElementById('txDesc').value   = tx.description || '';
+    document.getElementById('txCategory').value = tx.category_id || '';
+    document.getElementById(tx.type === 'income' ? 'typeIncome' : 'typeExpense').checked = true;
+    document.getElementById('txDeleteBtn').classList.remove('hidden');
+    openModal(txModal);
+  } catch {}
+};
+
+document.getElementById('txDeleteBtn').addEventListener('click', async () => {
+  if (!editingId) return;
+  const ok = await confirmDialog('Czy na pewno chcesz usunąć tę transakcję?', 'Usuń transakcję');
+  if (!ok) return;
+  try {
+    await txApi.delete(editingId);
+    showSuccess('Transakcja usunięta');
+    closeModal(txModal);
+    loadAll();
+  } catch (e) { showError(e.message); }
+});
+
+document.getElementById('txForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('txSaveBtn');
+  const type = document.querySelector('input[name="type"]:checked').value;
+  const payload = {
+    title: document.getElementById('txTitle').value.trim(),
+    amount: document.getElementById('txAmount').value,
+    type,
+    date: document.getElementById('txDate').value || new Date().toISOString(),
+    category_id: document.getElementById('txCategory').value || null,
+    description: document.getElementById('txDesc').value.trim(),
+  };
+  if (!payload.title || !payload.amount) { showError('Wypełnij wymagane pola.'); return; }
+
+  setLoading(btn, true);
+  try {
+    if (editingId) {
+      await txApi.update(editingId, payload);
+      showSuccess('Zaktualizowano!');
+    } else {
+      await txApi.create(payload);
+      showSuccess('Dodano transakcję!');
+    }
+    closeModal(txModal);
+    loadAll();
+  } catch (err) { showError(err.message || 'Błąd zapisu'); }
+  finally { setLoading(btn, false); }
+});
+
+// Type toggle
+document.querySelectorAll('input[name="type"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const ie = document.getElementById('typeExpense').checked;
+    document.getElementById('typeBtnExpense').style.cssText = `padding:9px;border-radius:var(--radius);text-align:center;font-size:13px;font-weight:500;${ie?'border:2px solid var(--red);background:var(--red-light);color:var(--red-text)':'border:2px solid var(--border);background:white;color:var(--text-secondary)'}`;
+    document.getElementById('typeBtnIncome').style.cssText  = `padding:9px;border-radius:var(--radius);text-align:center;font-size:13px;font-weight:500;${!ie?'border:2px solid var(--green);background:var(--green-light);color:var(--green-text)':'border:2px solid var(--border);background:white;color:var(--text-secondary)'}`;
+  });
+});
+
+loadAll();
+</script>
+</body>
+</html>

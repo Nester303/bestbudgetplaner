@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Admina — BudzetApp</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="topbar">
+        <div>
+          <h1 class="page-title">Panel Administratora</h1>
+          <p class="page-subtitle">Zarządzaj użytkownikami i danymi systemu</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-body page-enter">
+
+      <!-- Stats -->
+      <div class="grid-4 mb-4">
+        <div class="metric-card"><div class="metric-label">Użytkownicy</div><div class="metric-value" id="sUsers">—</div></div>
+        <div class="metric-card"><div class="metric-label">Transakcje</div><div class="metric-value" id="sTx">—</div></div>
+        <div class="metric-card"><div class="metric-label">Grupy</div><div class="metric-value" id="sGroups">—</div></div>
+        <div class="metric-card"><div class="metric-label">Faktury</div><div class="metric-value" id="sInvoices">—</div></div>
+      </div>
+
+      <!-- Users table -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+          <span class="card-title" style="margin:0">Użytkownicy</span>
+          <div class="search-box">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd"/></svg>
+            <input class="form-input" type="text" id="userSearch" placeholder="Szukaj po emailu...">
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Imię i nazwisko</th>
+                <th>Rola</th>
+                <th>Status</th>
+                <th>Data rejestracji</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="6"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { renderSidebar } from '../js/sidebar.js';
+import { adminApi, Auth } from '../js/api.js';
+import {
+  formatDateTime, initials, setLoading,
+  showSuccess, showError, confirmDialog
+} from '../js/utils.js';
+
+if (!Auth.isLoggedIn())  { window.location.href = 'login.html'; }
+if (!Auth.isAdmin())     { window.location.href = 'dashboard.html'; }
+renderSidebar('admin.html');
+
+// Load stats
+async function loadStats() {
+  try {
+    const s = await adminApi.stats();
+    document.getElementById('sUsers').textContent    = s.users;
+    document.getElementById('sTx').textContent       = s.transactions;
+    document.getElementById('sGroups').textContent   = s.groups;
+    document.getElementById('sInvoices').textContent = s.invoices;
+  } catch {}
+}
+
+// Load users
+let searchTimeout;
+async function loadUsers(q = '') {
+  const tbody = document.getElementById('usersTableBody');
+  tbody.innerHTML = '<tr><td colspan="6"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>';
+  try {
+    const { items } = await adminApi.users(q ? { q } : {});
+    if (!items?.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p class="empty-title">Brak użytkowników</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(u => `
+      <tr>
+        <td style="font-size:13.5px">${u.email}</td>
+        <td style="font-size:13.5px">${u.first_name ? `${u.first_name} ${u.last_name||''}`.trim() : '—'}</td>
+        <td>
+          <span class="badge ${u.role === 'admin' ? 'badge-green' : 'badge-gray'}">${u.role === 'admin' ? 'Admin' : 'Użytkownik'}</span>
+        </td>
+        <td>
+          <span class="badge ${u.is_active ? 'badge-green' : 'badge-red'}">${u.is_active ? 'Aktywny' : 'Zablokowany'}</span>
+        </td>
+        <td style="color:var(--text-secondary);font-size:12.5px">${formatDateTime(u.created_at)}</td>
+        <td>
+          <div style="display:flex;gap:4px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="toggleActive(${u.id}, ${u.is_active})"
+                    title="${u.is_active ? 'Zablokuj' : 'Odblokuj'}" style="color:${u.is_active ? 'var(--amber)' : 'var(--green)'}">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                ${u.is_active
+                  ? '<path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/>'
+                  : '<path d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z"/>'}
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="toggleRole(${u.id}, '${u.role}')"
+                    title="${u.role === 'admin' ? 'Zdegraduj do usera' : 'Mianuj adminem'}" style="color:var(--blue)">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 007.078 2.749.5.5 0 01.479.425c.069.52.104 1.05.104 1.589 0 5.162-3.26 9.563-7.834 11.256a.48.48 0 01-.332 0C5.26 16.563 2 12.162 2 7c0-.538.035-1.069.104-1.589a.5.5 0 01.48-.425 11.947 11.947 0 007.077-2.75z" clip-rule="evenodd"/></svg>
+            </button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="deleteUser(${u.id})"
+                    title="Usuń" style="color:var(--red)">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5z" clip-rule="evenodd"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>`).join('');
+  } catch (err) { showError(err.message); }
+}
+
+window.toggleActive = async (id, isActive) => {
+  const verb = isActive ? 'zablokować' : 'odblokować';
+  const ok = await confirmDialog(`Czy na pewno chcesz ${verb} tego użytkownika?`);
+  if (!ok) return;
+  try {
+    await adminApi.updateUser(id, { is_active: !isActive });
+    showSuccess('Zaktualizowano');
+    loadUsers(document.getElementById('userSearch').value);
+  } catch (e) { showError(e.message); }
+};
+
+window.toggleRole = async (id, currentRole) => {
+  const newRole = currentRole === 'admin' ? 'user' : 'admin';
+  const verb    = newRole === 'admin' ? 'nadać uprawnienia admina' : 'cofnąć uprawnienia admina';
+  const ok = await confirmDialog(`Czy na pewno chcesz ${verb}?`);
+  if (!ok) return;
+  try {
+    await adminApi.updateUser(id, { role: newRole });
+    showSuccess('Rola zmieniona');
+    loadUsers(document.getElementById('userSearch').value);
+  } catch (e) { showError(e.message); }
+};
+
+window.deleteUser = async (id) => {
+  const ok = await confirmDialog('Czy na pewno chcesz usunąć tego użytkownika? Wszystkie jego dane zostaną usunięte.', 'Usuń użytkownika');
+  if (!ok) return;
+  try {
+    await adminApi.deleteUser(id);
+    showSuccess('Użytkownik usunięty');
+    loadUsers(document.getElementById('userSearch').value);
+  } catch (e) { showError(e.message); }
+};
+
+document.getElementById('userSearch').addEventListener('input', (e) => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => loadUsers(e.target.value), 400);
+});
+
+loadStats();
+loadUsers();
+</script>
+</body>
+</html>

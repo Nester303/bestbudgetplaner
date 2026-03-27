@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weryfikacja emaila — BudzetApp</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/auth.css">
+  <style>
+    .code-inputs {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin: 24px 0;
+    }
+    .code-input {
+      width: 64px;
+      height: 72px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      border: 2px solid var(--border-strong);
+      border-radius: var(--radius);
+      outline: none;
+      transition: var(--transition);
+      color: var(--text-primary);
+      background: white;
+      caret-color: var(--accent);
+    }
+    .code-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+    }
+    .code-input.filled {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent-text);
+    }
+    .resend-timer {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 16px;
+    }
+    .resend-link {
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 500;
+      background: none;
+      border: none;
+      font-size: 13px;
+      font-family: inherit;
+      padding: 0;
+    }
+    .resend-link:hover { text-decoration: underline; }
+    .resend-link:disabled { color: var(--text-muted); cursor: default; }
+  </style>
+</head>
+<body>
+
+<div class="auth-layout">
+
+  <div class="auth-panel">
+    <div class="auth-form-wrap">
+
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M9.99 1.012C5.042 1.012 1 5.058 1 10c0 4.946 4.042 8.988 8.99 8.988C14.952 18.988 19 14.946 19 10c0-4.942-4.048-8.988-9.01-8.988zM10 5.5a.75.75 0 01.75.75v.807a4.62 4.62 0 011.743.733 3.257 3.257 0 011.007 1.29.75.75 0 01-1.39.567 1.757 1.757 0 00-.537-.698 3.12 3.12 0 00-.823-.407v2.3l.427.109c.31.079.633.181.93.352.298.172.578.417.79.748.214.334.353.74.353 1.249 0 .562-.181 1.077-.508 1.508-.316.42-.761.733-1.282.938a4.63 4.63 0 01-.71.189V14.5a.75.75 0 01-1.5 0v-.806a4.944 4.944 0 01-1.793-.762 3.515 3.515 0 01-1.143-1.422.75.75 0 011.393-.553c.14.356.367.638.648.84.297.214.665.364 1.095.454V9.937l-.308-.079a5.284 5.284 0 01-.994-.371 3.173 3.173 0 01-.84-.65C7.293 8.478 7 7.97 7 7.25c0-.546.178-1.04.488-1.455.306-.41.734-.718 1.228-.918A4.64 4.64 0 0110 4.75V5.5z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="auth-logo-text">BudzetApp</span>
+      </div>
+
+      <!-- Ikona koperty -->
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="width:64px;height:64px;background:var(--accent-light);border-radius:16px;
+             display:inline-flex;align-items:center;justify-content:center">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/>
+          </svg>
+        </div>
+      </div>
+
+      <h1 class="auth-title" style="text-align:center">Sprawdź swojego emaila</h1>
+      <p class="auth-subtitle" style="text-align:center" id="subtitleText">
+        Wysłaliśmy 4-cyfrowy kod weryfikacyjny na adres<br>
+        <strong id="emailDisplay">—</strong>
+      </p>
+
+      <div id="errorBox" style="display:none;padding:10px 12px;background:var(--red-light);
+           color:var(--red-text);border-radius:var(--radius);font-size:13px;margin-bottom:8px;text-align:center"></div>
+
+      <div id="successBox" style="display:none;padding:10px 12px;background:var(--green-light);
+           color:var(--green-text);border-radius:var(--radius);font-size:13px;margin-bottom:8px;text-align:center"></div>
+
+      <!-- 4 pola na cyfry -->
+      <div class="code-inputs">
+        <input class="code-input" type="text" inputmode="numeric" maxlength="1" id="c0" autocomplete="off">
+        <input class="code-input" type="text" inputmode="numeric" maxlength="1" id="c1" autocomplete="off">
+        <input class="code-input" type="text" inputmode="numeric" maxlength="1" id="c2" autocomplete="off">
+        <input class="code-input" type="text" inputmode="numeric" maxlength="1" id="c3" autocomplete="off">
+      </div>
+
+      <button class="btn btn-primary btn-full btn-lg" id="verifyBtn" disabled>
+        Potwierdź konto
+      </button>
+
+      <div class="resend-timer" id="resendArea">
+        Nie dostałeś emaila?
+        <button class="resend-link" id="resendBtn" disabled>
+          Wyślij ponownie (<span id="timerCount">60</span>s)
+        </button>
+      </div>
+
+      <p class="auth-footer" style="margin-top:20px">
+        Użyłeś złego emaila? <a href="register.html">Wróć do rejestracji</a>
+      </p>
+
+    </div>
+  </div>
+
+  <div class="auth-hero">
+    <div class="auth-hero-content">
+      <h2 class="auth-hero-title">Prawie gotowe!</h2>
+      <p class="auth-hero-desc">
+        Weryfikacja emaila chroni Twoje konto przed nieautoryzowanym dostępem.
+        Kod jest ważny przez 15 minut.
+      </p>
+      <div class="auth-feature-list">
+        <div class="auth-feature">
+          <div class="auth-feature-dot"></div>
+          Sprawdź folder Spam jeśli nie ma emaila
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-dot"></div>
+          Kod wygasa po 15 minutach
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-dot"></div>
+          Możesz poprosić o nowy kod po 60 sekundach
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { api, Auth } from '../js/api.js';
+import { setLoading, showSuccess, showError } from '../js/utils.js';
+
+if (Auth.isLoggedIn()) window.location.href = 'dashboard.html';
+
+// Pobierz email z URL params
+const params = new URLSearchParams(window.location.search);
+const email  = params.get('email') || '';
+document.getElementById('emailDisplay').textContent = email || '—';
+
+if (!email) window.location.href = 'register.html';
+
+// ── Kod input logic ────────────────────────────────────────────
+const inputs  = [0,1,2,3].map(i => document.getElementById(`c${i}`));
+const verifyBtn = document.getElementById('verifyBtn');
+const errBox    = document.getElementById('errorBox');
+const sucBox    = document.getElementById('successBox');
+
+function getCode() { return inputs.map(i => i.value).join(''); }
+
+function checkFilled() {
+  const code = getCode();
+  verifyBtn.disabled = code.length < 4;
+  inputs.forEach(inp => {
+    inp.classList.toggle('filled', inp.value.length === 1);
+  });
+}
+
+inputs.forEach((inp, idx) => {
+  inp.addEventListener('input', (e) => {
+    const val = e.target.value.replace(/\D/g, '');
+    inp.value = val.slice(-1);
+    if (val && idx < 3) inputs[idx + 1].focus();
+    checkFilled();
+  });
+
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !inp.value && idx > 0) {
+      inputs[idx - 1].focus();
+      inputs[idx - 1].value = '';
+      checkFilled();
+    }
+    if (e.key === 'Enter' && getCode().length === 4) {
+      submitCode();
+    }
+  });
+
+  // Obsługa paste (wklej cały kod)
+  inp.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+    if (text.length >= 4) {
+      inputs.forEach((inp2, i) => { inp2.value = text[i] || ''; });
+      inputs[3].focus();
+      checkFilled();
+    }
+  });
+});
+
+inputs[0].focus();
+
+// ── Submit ─────────────────────────────────────────────────────
+async function submitCode() {
+  const code = getCode();
+  if (code.length < 4) return;
+
+  errBox.style.display = 'none';
+  setLoading(verifyBtn, true);
+
+  try {
+    const data = await api.post('/auth/verify', { email, code });
+    Auth.setTokens(data.access_token, data.refresh_token);
+    Auth.setUser(data.user);
+    sucBox.textContent = 'Konto zweryfikowane! Przekierowanie...';
+    sucBox.style.display = 'block';
+    setTimeout(() => window.location.href = 'dashboard.html', 1000);
+  } catch (err) {
+    errBox.textContent = err.message || 'Błąd weryfikacji';
+    errBox.style.display = 'block';
+    // Wyczyść pola przy błędnym kodzie
+    inputs.forEach(i => { i.value = ''; i.classList.remove('filled'); });
+    inputs[0].focus();
+    verifyBtn.disabled = true;
+  } finally {
+    setLoading(verifyBtn, false);
+  }
+}
+
+verifyBtn.addEventListener('click', submitCode);
+
+// ── Resend timer ───────────────────────────────────────────────
+const resendBtn   = document.getElementById('resendBtn');
+const timerCount  = document.getElementById('timerCount');
+let timerSeconds  = 60;
+
+function startTimer() {
+  resendBtn.disabled = true;
+  timerSeconds = 60;
+  timerCount.textContent = timerSeconds;
+
+  const interval = setInterval(() => {
+    timerSeconds--;
+    timerCount.textContent = timerSeconds;
+    if (timerSeconds <= 0) {
+      clearInterval(interval);
+      resendBtn.disabled = false;
+      resendBtn.textContent = 'Wyślij ponownie';
+    }
+  }, 1000);
+}
+
+startTimer();
+
+resendBtn.addEventListener('click', async () => {
+  resendBtn.disabled = true;
+  errBox.style.display = 'none';
+  try {
+    await api.post('/auth/resend-code', { email });
+    sucBox.textContent = 'Nowy kod został wysłany!';
+    sucBox.style.display = 'block';
+    setTimeout(() => sucBox.style.display = 'none', 3000);
+    startTimer();
+  } catch (err) {
+    errBox.textContent = err.message || 'Błąd wysyłania';
+    errBox.style.display = 'block';
+    resendBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
