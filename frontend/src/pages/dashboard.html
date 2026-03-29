@@ -301,6 +301,14 @@ function renderMetrics(s) {
   document.getElementById('mIncome').textContent   = formatCurrency(s.income_total);
   document.getElementById('mExpense').textContent  = formatCurrency(s.expense_total);
   document.getElementById('mCount').textContent    = s.transaction_count;
+  // Aktualizuj saldo sub
+  const balanceSub = document.getElementById('mBalanceSub');
+  if (balanceSub) {
+    const b = s.balance || 0;
+    balanceSub.textContent = b >= 0 ? 'Nadwyżka' : 'Deficyt';
+    balanceSub.className = `metric-delta ${b >= 0 ? 'positive' : 'negative'}`;
+  }
+
   if (s.vs_prev_expense_pct !== null && s.vs_prev_expense_pct !== undefined) {
     const v = s.vs_prev_expense_pct;
     const el = document.getElementById('mExpenseSub');
