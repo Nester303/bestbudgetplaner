@@ -293,3 +293,99 @@ def group_summary(gid):
     return jsonify({"group_id": gid, "income_total": round(income, 2),
                     "expense_total": round(expense, 2),
                     "balance": round(income - expense, 2)})
+
+
+@groups_bp.post("/<int:gid>/transactions")
+@jwt_required()
+def create_group_transaction(gid):
+    user_id = int(get_jwt_identity())
+    err = _require_role(gid, user_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    for field in ("title", "amount", "type"):
+        if not data.get(field):
+            return jsonify({"error": f"Pole '{field}' jest wymagane"}), 400
+    if data["type"] not in ("income", "expense"):
+        return jsonify({"error": "type musi być 'income' lub 'expense'"}), 400
+
+    from ..models.transaction import Transaction
+    from datetime import datetime, timezone
+    t = Transaction(
+        user_id=user_id,
+        group_id=gid,
+        title=data["title"],
+        amount=data["amount"],
+        type=data["type"],
+        date=data.get("date") or datetime.now(timezone.utc).isoformat(),
+        description=data.get("description"),
+        category_id=data.get("category_id"),
+        currency=data.get("currency", "PLN"),
+        is_recurring=data.get("is_recurring", False),
+        recurrence_rule=data.get("recurrence_rule"),
+    )
+    db.session.add(t)
+    db.session.commit()
+    return jsonify(t.to_dict()), 201
+
+
+@groups_bp.get("/<int:gid>/invoices")
+@jwt_required()
+def group_invoices(gid):
+    user_id = int(get_jwt_identity())
+    err = _require_role(gid, user_id)
+    if err:
+        return err
+    from ..models.models import Invoice
+    invs = Invoice.query.filter_by(group_id=gid).order_by(Invoice.created_at.desc()).all()
+    return jsonify({"items": [i.to_dict() for i in invs]})
+
+
+@groups_bp.post("/<int:gid>/invoices")
+@jwt_required()
+def create_group_invoice(gid):
+    user_id = int(get_jwt_identity())
+    err = _require_role(gid, user_id, "admin")
+    if err:
+        return err
+    from ..routes.invoices import _create_invoice_logic
+    return _create_invoice_logic(user_id=user_id, group_id=gid)
+
+
+@groups_bp.get("/<int:gid>/events")
+@jwt_required()
+def group_events(gid):
+    user_id = int(get_jwt_identity())
+    err = _require_role(gid, user_id)
+    if err:
+        return err
+    from ..models.models import Event
+    events = Event.query.filter_by(group_id=gid).order_by(Event.start.asc()).all()
+    return jsonify([e.to_dict() for e in events])
+
+
+@groups_bp.post("/<int:gid>/events")
+@jwt_required()
+def create_group_event(gid):
+    user_id = int(get_jwt_identity())
+    err = _require_role(gid, user_id)
+    if err:
+        return err
+    from ..models.models import Event
+    from datetime import datetime, timezone
+    data = request.get_json(silent=True) or {}
+    if not data.get("title") or not data.get("start"):
+        return jsonify({"error": "Tytuł i data rozpoczęcia są wymagane"}), 400
+    e = Event(
+        user_id=user_id,
+        group_id=gid,
+        title=data["title"],
+        start=data["start"],
+        end=data.get("end"),
+        color=data.get("color", "#10b981"),
+        category=data.get("category", "other"),
+        description=data.get("description"),
+    )
+    db.session.add(e)
+    db.session.commit()
+    return jsonify(e.to_dict()), 201

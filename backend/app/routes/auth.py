@@ -14,40 +14,44 @@ from ..models.user import User
 auth_bp = Blueprint("auth", __name__)
 
 
-def _send_verify_email(user):
+def _send_email(to_email, subject, html_content):
     import resend
     resend.api_key = current_app.config["RESEND_API_KEY"]
+    sender = current_app.config.get("MAIL_DEFAULT_SENDER", "onboarding@resend.dev")
+    resend.Emails.send({
+        "from":    sender,
+        "to":      [to_email],
+        "subject": subject,
+        "html":    html_content,
+    })
 
+
+def _verify_html(user):
     name = user.first_name or ""
-    greeting = f"Witaj {name}!" if name else "Witaj!"
-
-    html_content = (
+    g = f"Witaj {name}!" if name else "Witaj!"
+    return (
         "<div style='font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px'>"
-        f"<h2 style='color:#0f1117;margin-bottom:8px'>{greeting}</h2>"
-        "<p style='color:#6b7280;margin-bottom:24px'>"
-        "Dziekujemy za rejestracje w BudzetApp. "
-        "Podaj ponizszy kod, aby potwierdzic swoj adres email."
-        "</p>"
-        "<div style='background:#f1f5f9;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px'>"
-        f"<span style='font-size:40px;font-weight:700;letter-spacing:12px;color:#0f1117;font-family:monospace'>{user.verify_code}</span>"
-        "</div>"
-        "<p style='color:#6b7280;font-size:14px'>"
-        "Kod jest wazny przez <strong>15 minut</strong>.<br>"
-        "Jesli to nie Ty sie rejestrujesz, zignoruj te wiadomosc."
-        "</p>"
-        "<hr style='border:none;border-top:1px solid #e5e7eb;margin:24px 0'>"
-        "<p style='color:#9ca3af;font-size:12px'>BudzetApp - app.bestbudgetplaner.pl</p>"
-        "</div>"
+        f"<h2 style='color:#0f1117'>{g}</h2>"
+        "<p style='color:#6b7280'>Dziekujemy za rejestracje. Podaj kod aby potwierdzic email.</p>"
+        "<div style='background:#f1f5f9;border-radius:12px;padding:24px;text-align:center'>"
+        f"<span style='font-size:40px;font-weight:700;letter-spacing:12px;font-family:monospace'>{user.verify_code}</span>"
+        "</div><p style='color:#6b7280;font-size:14px'>Kod wazny 15 minut.</p>"
+        "<p style='color:#9ca3af;font-size:12px'>BudzetApp - app.bestbudgetplaner.pl</p></div>"
     )
 
-    sender = current_app.config.get("MAIL_DEFAULT_SENDER", "onboarding@resend.dev")
-    params = {
-        "from":    sender,
-        "to":      [user.email],
-        "subject": "Twoj kod weryfikacyjny - BudzetApp",
-        "html":    html_content,
-    }
-    resend.Emails.send(params)
+
+def _reset_html(user):
+    name = user.first_name or ""
+    g = f"Witaj {name}!" if name else "Witaj!"
+    return (
+        "<div style='font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px'>"
+        f"<h2 style='color:#0f1117'>{g}</h2>"
+        "<p style='color:#6b7280'>Otrzymalismy prosbe o reset hasla.</p>"
+        "<div style='background:#f1f5f9;border-radius:12px;padding:24px;text-align:center'>"
+        f"<span style='font-size:40px;font-weight:700;letter-spacing:12px;font-family:monospace'>{user.verify_code}</span>"
+        "</div><p style='color:#6b7280;font-size:14px'>Kod wazny 15 minut.</p>"
+        "<p style='color:#9ca3af;font-size:12px'>BudzetApp - app.bestbudgetplaner.pl</p></div>"
+    )
 
 
 def _generate_code(user):
@@ -79,7 +83,7 @@ def register():
     db.session.commit()
 
     try:
-        _send_verify_email(user)
+        _send_email(user.email, "Twoj kod weryfikacyjny - BudzetApp", _verify_html(user))
     except Exception as e:
         current_app.logger.error(f"Blad emaila do {email}: {e}")
 
@@ -146,12 +150,68 @@ def resend_code():
     db.session.commit()
 
     try:
-        _send_verify_email(user)
+        _send_email(user.email, "Twoj kod weryfikacyjny - BudzetApp", _verify_html(user))
     except Exception as e:
         current_app.logger.error(f"Blad emaila do {email}: {e}")
-        return jsonify({"error": "Blad wysylania emaila - sprobuj ponownie"}), 500
+        return jsonify({"error": "Blad wysylania emaila"}), 500
 
     return jsonify({"message": "Nowy kod zostal wyslany"})
+
+
+@auth_bp.post("/forgot-password")
+@limiter.limit("5 per hour")
+def forgot_password():
+    data  = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+
+    if not email:
+        return jsonify({"error": "Email jest wymagany"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.is_active:
+        return jsonify({"message": "Jesli konto istnieje, kod zostal wyslany"}), 200
+
+    _generate_code(user)
+    db.session.commit()
+
+    try:
+        _send_email(user.email, "Reset hasla - BudzetApp", _reset_html(user))
+    except Exception as e:
+        current_app.logger.error(f"Blad emaila reset do {email}: {e}")
+        return jsonify({"error": "Blad wysylania emaila"}), 500
+
+    return jsonify({"message": "Kod zostal wyslany"})
+
+
+@auth_bp.post("/reset-password")
+@limiter.limit("10 per hour")
+def reset_password():
+    data     = request.get_json(silent=True) or {}
+    email    = (data.get("email") or "").strip().lower()
+    code     = (data.get("code")  or "").strip()
+    new_pass = data.get("new_password") or ""
+
+    if not email or not code or not new_pass:
+        return jsonify({"error": "Wszystkie pola sa wymagane"}), 400
+    if len(new_pass) < 8:
+        return jsonify({"error": "Haslo musi miec co najmniej 8 znakow"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Nie znaleziono konta"}), 404
+    if not user.verify_code or not user.verify_code_exp:
+        return jsonify({"error": "Brak aktywnego kodu"}), 400
+    if datetime.now(timezone.utc) > user.verify_code_exp:
+        return jsonify({"error": "Kod wygasl"}), 400
+    if user.verify_code != code:
+        return jsonify({"error": "Nieprawidlowy kod"}), 400
+
+    user.set_password(new_pass)
+    user.verify_code     = None
+    user.verify_code_exp = None
+    db.session.commit()
+
+    return jsonify({"message": "Haslo zostalo zmienione"})
 
 
 @auth_bp.post("/login")
@@ -209,6 +269,11 @@ def update_me():
     if "last_name"        in data: user.last_name        = data["last_name"].strip()
     if "default_currency" in data: user.default_currency = data["default_currency"]
     if "timezone"         in data: user.timezone         = data["timezone"]
+    if "seller_name"      in data: user.seller_name      = data["seller_name"]
+    if "seller_nip"       in data: user.seller_nip       = data["seller_nip"]
+    if "seller_address"   in data: user.seller_address   = data["seller_address"]
+    if "seller_email"     in data: user.seller_email     = data["seller_email"]
+    if "seller_bank"      in data: user.seller_bank      = data["seller_bank"]
     db.session.commit()
     return jsonify(user.to_dict(include_private=True))
 

@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Logowanie — BudzetApp</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../css/main.css">
+  <script src="../js/init.js"></script>
   <link rel="stylesheet" href="../css/auth.css">
 </head>
 <body>
@@ -38,8 +39,8 @@
         <div class="form-group">
           <label class="form-label" for="password">
             Hasło
-            <a href="#" style="float:right;font-weight:400;color:var(--accent);font-size:12px" id="forgotLink">
-              Zapomniałeś?
+            <a href="forgot-password.html" style="float:right;font-weight:400;color:var(--accent);font-size:12px">
+              Zapomniałeś hasła?
             </a>
           </label>
           <input class="form-input" type="password" id="password" name="password"
@@ -136,7 +137,7 @@ form.addEventListener('submit', async (e) => {
 
 // Password visibility toggle via keyboard
 document.getElementById('password').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') form.dispatchEvent(new Event('submit'));
+  if (e.key === 'Enter') form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
 });
 </script>
 </body>

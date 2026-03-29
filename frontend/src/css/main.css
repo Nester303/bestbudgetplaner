@@ -897,3 +897,175 @@ tbody tr { transition: background 0.1s; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hidden { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+/* ── Dark Mode ──────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:               #141518;
+  --bg-card:          #1c1e22;
+  --bg-hover:         #242629;
+  --bg-input:         #1c1e22;
+
+  --text-primary:     #f1f5f9;
+  --text-secondary:   #94a3b8;
+  --text-muted:       #64748b;
+
+  --border:           rgba(255,255,255,0.08);
+  --border-strong:    rgba(255,255,255,0.14);
+
+  --accent-light:     rgba(16,185,129,0.15);
+  --accent-text:      #6ee7b7;
+  --green-light:      rgba(16,185,129,0.15);
+  --green-text:       #6ee7b7;
+  --red-light:        rgba(239,68,68,0.15);
+  --red-text:         #fca5a5;
+  --amber-light:      rgba(245,158,11,0.15);
+  --amber-text:       #fcd34d;
+  --blue-light:       rgba(59,130,246,0.15);
+  --blue-text:        #93c5fd;
+
+  --shadow-sm:        0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:        0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg:        0 10px 25px rgba(0,0,0,0.5);
+}
+
+/* Dark mode toggle button */
+.theme-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--sidebar-text);
+  transition: var(--transition);
+  background: transparent;
+  border: none;
+  flex-shrink: 0;
+}
+.theme-toggle:hover {
+  background: var(--sidebar-hover);
+  color: white;
+}
+.theme-toggle svg { width: 16px; height: 16px; }
+
+/* Footer disclaimer */
+.page-footer-disclaimer {
+  text-align: center;
+  padding: 16px 24px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+  line-height: 1.6;
+}
+
+/* Logout confirm modal */
+.logout-confirm {
+  position: fixed;
+  bottom: 80px;
+  left: 12px;
+  width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  display: none;
+}
+.logout-confirm.open { display: block; }
+.logout-confirm p {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.logout-confirm-btns {
+  display: flex;
+  gap: 6px;
+}
+
+/* ── Dark Mode ───────────────────────────────────────────────────── */
+:root.dark {
+  --bg:               #1a1a2e;
+  --bg-card:          #16213e;
+  --bg-hover:         #0f3460;
+  --bg-input:         #1a1a2e;
+  --text-primary:     #e2e8f0;
+  --text-secondary:   #94a3b8;
+  --text-muted:       #64748b;
+  --border:           #2d3748;
+  --border-strong:    #4a5568;
+  --shadow-sm:        0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:        0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg:        0 10px 25px rgba(0,0,0,0.5);
+  --accent-light:     rgba(16,185,129,0.15);
+  --accent-text:      #34d399;
+  --green-light:      rgba(16,185,129,0.15);
+  --green-text:       #34d399;
+  --red-light:        rgba(239,68,68,0.15);
+  --red-text:         #f87171;
+  --amber-light:      rgba(245,158,11,0.15);
+  --amber-text:       #fbbf24;
+  --blue-light:       rgba(59,130,246,0.15);
+  --blue-text:        #60a5fa;
+}
+
+:root.dark body { background: var(--bg); color: var(--text-primary); }
+:root.dark .card { background: var(--bg-card); border-color: var(--border); }
+:root.dark .metric-card { background: var(--bg-card); border-color: var(--border); }
+:root.dark .form-input,
+:root.dark .form-select,
+:root.dark .form-textarea {
+  background: var(--bg-input);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+:root.dark .modal { background: var(--bg-card); }
+:root.dark .modal-overlay { background: rgba(0,0,0,0.7); }
+:root.dark table thead th { border-color: var(--border); color: var(--text-secondary); }
+:root.dark table tbody td { border-color: var(--border); }
+:root.dark table tbody tr:hover td { background: var(--bg-hover); }
+:root.dark .btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border-strong); }
+:root.dark .btn-secondary:hover { background: var(--bg-hover); }
+:root.dark .period-tabs { background: var(--bg-card); border-color: var(--border); }
+:root.dark .period-tab.active { background: var(--bg-hover); }
+:root.dark .input-group { border-color: var(--border-strong); }
+:root.dark .input-group-prefix,
+:root.dark .input-group-suffix { background: var(--bg); border-color: var(--border); }
+:root.dark .progress-bar { background: var(--border); }
+:root.dark .tx-item { border-color: var(--border); }
+:root.dark footer { background: var(--bg-card); border-top: 1px solid var(--border); }
+
+/* ── Dark Mode ───────────────────────────────────────────────────── */
+html.dark {
+  --bg:           #111827;
+  --bg-card:      #1f2937;
+  --bg-hover:     #374151;
+  --bg-input:     #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary:#9ca3af;
+  --text-muted:   #6b7280;
+  --border:       #374151;
+  --border-strong:#4b5563;
+  --shadow-sm:    0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:    0 4px 6px rgba(0,0,0,0.4);
+}
+
+html.dark body          { background: var(--bg); color: var(--text-primary); }
+html.dark .card         { background: var(--bg-card); border-color: var(--border); }
+html.dark .metric-card  { background: var(--bg-card); border-color: var(--border); }
+html.dark table tbody td { background: transparent; }
+html.dark table tbody tr:hover td { background: var(--bg-hover); }
+html.dark .form-input,
+html.dark .form-select,
+html.dark .form-textarea {
+  background: var(--bg-input);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+html.dark .btn-secondary { background: var(--bg-card); border-color: var(--border-strong); color: var(--text-primary); }
+html.dark .modal         { background: var(--bg-card); }
+html.dark .modal-overlay { background: rgba(0,0,0,0.7); }
+html.dark .period-tabs   { background: var(--bg-hover); border-color: var(--border); }
+html.dark .period-tab.active { background: var(--bg-card); }

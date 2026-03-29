@@ -25,6 +25,13 @@ class User(db.Model):
     default_currency = db.Column(db.String(3), default="PLN")
     timezone         = db.Column(db.String(50), default="Europe/Warsaw")
 
+    # Dane sprzedawcy (do faktur)
+    seller_name    = db.Column(db.String(255))
+    seller_nip     = db.Column(db.String(20))
+    seller_address = db.Column(db.Text)
+    seller_email   = db.Column(db.String(255))
+    seller_bank    = db.Column(db.String(100))
+
     created_at    = db.Column(db.DateTime(timezone=True),
                                default=lambda: datetime.now(timezone.utc))
     updated_at    = db.Column(db.DateTime(timezone=True),
@@ -62,6 +69,11 @@ class User(db.Model):
             "is_active":        self.is_active,
             "default_currency": self.default_currency,
             "timezone":         self.timezone,
+            "seller_name":      self.seller_name,
+            "seller_nip":       self.seller_nip,
+            "seller_address":   self.seller_address,
+            "seller_email":     self.seller_email,
+            "seller_bank":      self.seller_bank,
             "created_at":       self.created_at.isoformat() if self.created_at else None,
         }
         if include_private:

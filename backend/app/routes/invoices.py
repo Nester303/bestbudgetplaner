@@ -1,5 +1,5 @@
 """
-/api/invoices — faktury VAT z generowaniem PDF i wysyłką email.
+/api/invoices — faktury VAT z generowaniem PDF.
 """
 from __future__ import annotations
 import io
@@ -8,7 +8,7 @@ from datetime import date, datetime, timezone
 from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from ..extensions import db, mail
+from ..extensions import db
 from ..models.models import Invoice
 from ..models.user import User
 from ..services.pdf_invoice import generate_invoice_pdf
@@ -38,6 +38,60 @@ def _recalc(items: list) -> tuple[float, float, float]:
     return round(net, 2), round(vat, 2), round(gross, 2)
 
 
+def _invoice_data(inv: Invoice, user: User) -> dict:
+    """Buduje słownik danych faktury do PDF — z danymi sprzedawcy z profilu."""
+    seller_name = user.seller_name or f"{user.first_name or ''} {user.last_name or ''}".strip()
+    return {
+        "number":     inv.number,
+        "issue_date": inv.issue_date.isoformat() if inv.issue_date else None,
+        "due_date":   inv.due_date.isoformat()   if inv.due_date   else None,
+        "currency":   inv.currency,
+        "notes":      inv.notes,
+        "payment_method": "transfer",
+        "seller": {
+            "name":         seller_name,
+            "nip":          user.seller_nip     or "",
+            "address":      user.seller_address or "",
+            "email":        user.seller_email   or user.email,
+            "bank_account": user.seller_bank    or "",
+        },
+        "buyer": {
+            "name":    inv.buyer_name,
+            "nip":     inv.buyer_nip,
+            "address": inv.buyer_address,
+            "email":   inv.buyer_email,
+        },
+        "items": inv.items or [],
+    }
+
+
+def _create_invoice_logic(user_id: int, group_id: int = None):
+    """Wspólna logika tworzenia faktury (używana przez /invoices/ i /groups/<id>/invoices)."""
+    data  = request.get_json(silent=True) or {}
+    items = data.get("items", [])
+    net, vat, gross = _recalc(items)
+
+    inv = Invoice(
+        user_id       = user_id,
+        group_id      = group_id,
+        number        = data.get("number") or _next_number(user_id),
+        issue_date    = date.fromisoformat(data.get("issue_date", date.today().isoformat())),
+        due_date      = date.fromisoformat(data["due_date"]) if data.get("due_date") else None,
+        status        = data.get("status", "unpaid"),
+        buyer_name    = data.get("buyer_name"),
+        buyer_nip     = data.get("buyer_nip"),
+        buyer_address = data.get("buyer_address"),
+        buyer_email   = data.get("buyer_email"),
+        net_total=net, vat_total=vat, gross_total=gross,
+        currency      = data.get("currency", "PLN"),
+        notes         = data.get("notes"),
+        items         = items,
+    )
+    db.session.add(inv)
+    db.session.commit()
+    return jsonify(inv.to_dict()), 201
+
+
 @invoices_bp.get("/")
 @jwt_required()
 def list_invoices():
@@ -59,29 +113,8 @@ def list_invoices():
 @invoices_bp.post("/")
 @jwt_required()
 def create_invoice():
-    user_id = get_jwt_identity()
-    data    = request.get_json(silent=True) or {}
-    items   = data.get("items", [])
-    net, vat, gross = _recalc(items)
-
-    inv = Invoice(
-        user_id       = user_id,
-        number        = data.get("number") or _next_number(user_id),
-        issue_date    = date.fromisoformat(data.get("issue_date", date.today().isoformat())),
-        due_date      = date.fromisoformat(data["due_date"]) if data.get("due_date") else None,
-        status        = data.get("status", "unpaid"),
-        buyer_name    = data.get("buyer_name"),
-        buyer_nip     = data.get("buyer_nip"),
-        buyer_address = data.get("buyer_address"),
-        buyer_email   = data.get("buyer_email"),
-        net_total=net, vat_total=vat, gross_total=gross,
-        currency      = data.get("currency", "PLN"),
-        notes         = data.get("notes"),
-        items         = items,
-    )
-    db.session.add(inv)
-    db.session.commit()
-    return jsonify(inv.to_dict()), 201
+    user_id = int(get_jwt_identity())
+    return _create_invoice_logic(user_id=user_id)
 
 
 @invoices_bp.get("/<int:iid>")
@@ -129,8 +162,7 @@ def update_status(iid):
     user_id = get_jwt_identity()
     inv     = Invoice.query.filter_by(id=iid, user_id=user_id).first_or_404()
     new_status = (request.get_json(silent=True) or {}).get("status")
-    allowed = {"draft": ["unpaid", "cancelled"],
-                "unpaid": ["paid", "cancelled"]}
+    allowed = {"draft": ["unpaid", "cancelled"], "unpaid": ["paid", "cancelled"]}
     if new_status not in allowed.get(inv.status, []):
         return jsonify({"error": f"Niedozwolona zmiana: {inv.status} → {new_status}"}), 400
     inv.status = new_status
@@ -141,7 +173,7 @@ def update_status(iid):
 @invoices_bp.get("/<int:iid>/pdf")
 @jwt_required()
 def download_pdf(iid):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     inv  = Invoice.query.filter_by(id=iid, user_id=user_id).first_or_404()
     user = User.query.get(user_id)
     pdf  = generate_invoice_pdf(_invoice_data(inv, user))
@@ -153,40 +185,27 @@ def download_pdf(iid):
 @invoices_bp.post("/<int:iid>/send")
 @jwt_required()
 def send_invoice(iid):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     inv  = Invoice.query.filter_by(id=iid, user_id=user_id).first_or_404()
     user = User.query.get(user_id)
     if not inv.buyer_email:
         return jsonify({"error": "Brak adresu email nabywcy"}), 400
     try:
-        from flask_mail import Message
-        pdf  = generate_invoice_pdf(_invoice_data(inv, user))
-        msg  = Message(
-            subject    = f"Faktura {inv.number}",
-            recipients = [inv.buyer_email],
-            body       = f"W załączniku faktura nr {inv.number} "
-                         f"({inv.gross_total} {inv.currency}).",
-        )
-        msg.attach(f"faktura_{inv.number.replace('/', '_')}.pdf",
-                   "application/pdf", pdf)
-        mail.send(msg)
+        import resend
+        resend.api_key = current_app.config.get("RESEND_API_KEY", "")
+        pdf = generate_invoice_pdf(_invoice_data(inv, user))
+        import base64
+        resend.Emails.send({
+            "from":    current_app.config.get("MAIL_DEFAULT_SENDER", "onboarding@resend.dev"),
+            "to":      [inv.buyer_email],
+            "subject": f"Faktura {inv.number}",
+            "html":    f"<p>W załączniku faktura nr {inv.number} ({inv.gross_total} {inv.currency}).</p>",
+            "attachments": [{
+                "filename": f"faktura_{inv.number.replace('/', '_')}.pdf",
+                "content":  list(pdf),
+            }],
+        })
         return jsonify({"message": f"Wysłano na {inv.buyer_email}"})
     except Exception as exc:
         current_app.logger.error("Mail error: %s", exc)
-        return jsonify({"error": "Błąd wysyłki — sprawdź konfigurację SMTP"}), 500
-
-
-def _invoice_data(inv: Invoice, user: User) -> dict:
-    return {
-        "number": inv.number,
-        "issue_date": inv.issue_date.isoformat() if inv.issue_date else None,
-        "due_date":   inv.due_date.isoformat()   if inv.due_date   else None,
-        "currency": inv.currency, "notes": inv.notes,
-        "payment_method": "transfer",
-        "seller": {"name": f"{user.first_name or ''} {user.last_name or ''}".strip(),
-                   "email": user.email, "nip": "", "address": "",
-                   "phone": "", "bank_account": ""},
-        "buyer": {"name": inv.buyer_name, "nip": inv.buyer_nip,
-                  "address": inv.buyer_address, "email": inv.buyer_email},
-        "items": inv.items or [],
-    }
+        return jsonify({"error": "Błąd wysyłki"}), 500

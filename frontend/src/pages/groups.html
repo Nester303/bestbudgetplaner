@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Grupy — BudzetApp</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../css/main.css">
+  <script src="../js/init.js"></script>
 </head>
 <body>
 <div class="app-layout">
@@ -26,21 +27,24 @@
         <div class="loading-overlay" style="grid-column:1/-1"><div class="spinner"></div></div>
       </div>
 
-      <!-- Group detail panel (shown when group selected) -->
+      <!-- Group detail panel -->
       <div id="groupDetail" style="display:none;margin-top:16px">
-        <div class="topbar">
+        <div class="topbar" style="margin-bottom:16px">
           <div>
             <h2 style="font-size:17px;font-weight:600" id="groupDetailName"></h2>
             <p style="font-size:13px;color:var(--text-secondary)" id="groupDetailRole"></p>
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" id="addGroupTxBtn">+ Transakcja</button>
+            <button class="btn btn-secondary btn-sm" id="addGroupInvoiceBtn">+ Faktura</button>
+            <button class="btn btn-secondary btn-sm" id="addGroupEventBtn">+ Wydarzenie</button>
             <button class="btn btn-secondary btn-sm" id="inviteMemberBtn">+ Zaproś</button>
-            <button class="btn btn-ghost btn-sm" id="leaveGroupBtn" style="color:var(--red)">Opuść grupę</button>
-            <button class="btn btn-ghost btn-sm" id="closeDetailBtn">✕ Zamknij</button>
+            <button class="btn btn-ghost btn-sm" id="leaveGroupBtn" style="color:var(--red)">Opuść</button>
+            <button class="btn btn-ghost btn-sm" id="closeDetailBtn">✕</button>
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="grid-3" style="margin-bottom:16px">
           <div class="metric-card">
             <div class="metric-label">Przychody grupy</div>
             <div class="metric-value positive" id="gdIncome">—</div>
@@ -55,20 +59,36 @@
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:280px 1fr;gap:16px">
-          <!-- Members -->
+        <!-- Tabs -->
+        <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)">
+          <button class="group-tab active" data-tab="transactions">Transakcje</button>
+          <button class="group-tab" data-tab="members">Członkowie</button>
+          <button class="group-tab" data-tab="calendar">Kalendarz</button>
+        </div>
+
+        <div id="tabTransactions">
+          <div class="card" style="padding:0;overflow:hidden">
+            <div id="groupTxList" style="padding:8px 0"></div>
+          </div>
+        </div>
+
+        <div id="tabMembers" style="display:none">
           <div class="card">
-            <div class="card-title">Członkowie</div>
             <div id="membersList"></div>
           </div>
-          <!-- Recent transactions -->
+        </div>
+
+        <div id="tabCalendar" style="display:none">
           <div class="card">
-            <div class="card-title">Ostatnie transakcje grupy</div>
-            <div id="groupTxList"></div>
+            <div id="groupCalList"></div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Footer edukacyjny -->
+
+    <footer style="padding:14px 32px;font-size:11.5px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:auto;text-align:center">⚠️ Projekt edukacyjny — twórcy nie ponoszą odpowiedzialności za szkody wyrządzone poprzez użytkowanie tej aplikacji.</footer>
   </main>
 </div>
 
@@ -97,7 +117,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Opis</label>
-          <textarea class="form-textarea" id="gDesc" rows="2" placeholder="Opcjonalny opis..."></textarea>
+          <textarea class="form-textarea" id="gDesc" rows="2"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -139,53 +159,168 @@
   </div>
 </div>
 
+<!-- Add Transaction Modal -->
+<div class="modal-overlay hidden" id="groupTxModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Dodaj transakcję grupy</span>
+      <div class="modal-close" id="groupTxModalClose">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </div>
+    </div>
+    <form id="groupTxForm">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <label style="cursor:pointer">
+          <input type="radio" name="gtxType" value="expense" checked style="display:none" id="gtxTypeExpense">
+          <div id="gtxBtnExpense" style="padding:9px;border-radius:var(--radius);border:2px solid var(--red);background:var(--red-light);color:var(--red-text);text-align:center;font-size:13px;font-weight:500">Wydatek</div>
+        </label>
+        <label style="cursor:pointer">
+          <input type="radio" name="gtxType" value="income" style="display:none" id="gtxTypeIncome">
+          <div id="gtxBtnIncome" style="padding:9px;border-radius:var(--radius);border:2px solid var(--border);background:white;color:var(--text-secondary);text-align:center;font-size:13px;font-weight:500">Przychód</div>
+        </label>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <div class="form-group">
+          <label class="form-label">Tytuł <span class="required">*</span></label>
+          <input class="form-input" id="gtxTitle" type="text" required>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label class="form-label">Kwota</label>
+            <div class="input-group">
+              <input class="form-input" id="gtxAmount" type="number" min="0" step="0.01" style="text-align:right">
+              <span class="input-group-suffix">PLN</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input class="form-input" id="gtxDate" type="date">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opis</label>
+          <textarea class="form-textarea" id="gtxDesc" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="groupTxCancelBtn">Anuluj</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="groupTxSaveBtn">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Event Modal -->
+<div class="modal-overlay hidden" id="groupEventModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Dodaj wydarzenie grupy</span>
+      <div class="modal-close" id="groupEventModalClose">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </div>
+    </div>
+    <form id="groupEventForm">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Tytuł <span class="required">*</span></label>
+          <input class="form-input" id="gevTitle" type="text" required>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label class="form-label">Rozpoczęcie</label>
+            <input class="form-input" id="gevStart" type="datetime-local">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Zakończenie</label>
+            <input class="form-input" id="gevEnd" type="datetime-local">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opis</label>
+          <textarea class="form-textarea" id="gevDesc" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="groupEventCancelBtn">Anuluj</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="groupEventSaveBtn">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.group-tab {
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: var(--font-body);
+}
+.group-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.group-tab:hover:not(.active) { color: var(--text-primary); }
+</style>
+
 <script type="module">
 import { renderSidebar } from '../js/sidebar.js';
-import { groupsApi, Auth } from '../js/api.js';
+import { groupsApi, txApi, Auth } from '../js/api.js';
 import {
-  formatCurrency, formatDateShort, initials, openModal, closeModal,
-  setLoading, showSuccess, showError, confirmDialog
+  formatCurrency, formatDateShort, formatDateTime, initials,
+  openModal, closeModal, setLoading, showSuccess, showError, confirmDialog
 } from '../js/utils.js';
 
 if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; }
 renderSidebar('groups.html');
 
-const groupModal  = document.getElementById('groupModal');
-const inviteModal = document.getElementById('inviteModal');
-let activeGroupId = null;
+const groupModal      = document.getElementById('groupModal');
+const inviteModal     = document.getElementById('inviteModal');
+const groupTxModal    = document.getElementById('groupTxModal');
+const groupEventModal = document.getElementById('groupEventModal');
+let activeGroupId     = null;
+let activeTab         = 'transactions';
+
+// ── Tabs ──────────────────────────────────────────────────────────
+document.querySelectorAll('.group-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.group-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeTab = tab.dataset.tab;
+    document.getElementById('tabTransactions').style.display = activeTab === 'transactions' ? '' : 'none';
+    document.getElementById('tabMembers').style.display      = activeTab === 'members'      ? '' : 'none';
+    document.getElementById('tabCalendar').style.display     = activeTab === 'calendar'     ? '' : 'none';
+    if (activeTab === 'calendar' && activeGroupId) loadGroupCalendar();
+  });
+});
 
 // ── Load groups ───────────────────────────────────────────────────
 async function loadGroups() {
   try {
     const groups = await groupsApi.list();
     const grid   = document.getElementById('groupsGrid');
-
     if (!groups.length) {
-      grid.innerHTML = `
-        <div style="grid-column:1/-1">
-          <div class="empty-state">
-            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
-            </svg>
-            <p class="empty-title">Brak grup</p>
-            <p class="empty-desc">Utwórz pierwszą grupę, aby zarządzać wspólnym budżetem.</p>
-            <button class="btn btn-primary btn-sm" onclick="document.getElementById('createGroupBtn').click()">Utwórz grupę</button>
-          </div>
-        </div>`;
+      grid.innerHTML = `<div style="grid-column:1/-1"><div class="empty-state">
+        <p class="empty-title">Brak grup</p>
+        <p class="empty-desc">Utwórz pierwszą grupę, aby zarządzać wspólnym budżetem.</p>
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('createGroupBtn').click()">Utwórz grupę</button>
+      </div></div>`;
       return;
     }
-
-    const TYPE_LABELS = { family: 'Rodzina', company: 'Firma', other: 'Inne' };
-    const ROLE_LABELS = { owner: 'Właściciel', admin: 'Admin', member: 'Członek' };
-
+    const TYPE_LABELS = { family:'Rodzina', company:'Firma', other:'Inne' };
+    const ROLE_LABELS = { owner:'Właściciel', admin:'Admin', member:'Członek' };
     grid.innerHTML = groups.map(g => `
-      <div class="card" style="cursor:pointer;transition:var(--transition);hover:shadow-md"
+      <div class="card" style="cursor:pointer;transition:var(--transition)"
            onclick="openGroup(${g.id})"
            onmouseenter="this.style.boxShadow='var(--shadow-md)'"
            onmouseleave="this.style.boxShadow='var(--shadow-sm)'">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
-          <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-light);
-               display:flex;align-items:center;justify-content:center;font-size:18px">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-size:18px">
             ${g.type === 'family' ? '👨‍👩‍👧' : g.type === 'company' ? '🏢' : '👥'}
           </div>
           <span class="badge ${g.my_role === 'owner' ? 'badge-green' : g.my_role === 'admin' ? 'badge-blue' : 'badge-gray'}">
@@ -194,17 +329,12 @@ async function loadGroups() {
         </div>
         <div style="font-size:15px;font-weight:600;margin-bottom:4px">${g.name}</div>
         <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px">${TYPE_LABELS[g.type] || g.type}</div>
-        <div style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
-          <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zM14.5 9a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM1.615 16.428a1.224 1.224 0 01-.569-1.175 6.002 6.002 0 0111.908 0c.058.467-.172.92-.57 1.174A9.953 9.953 0 017 18a9.953 9.953 0 01-5.385-1.572zM14.5 16h-.106c.07-.297.088-.611.048-.933a7.47 7.47 0 00-1.588-3.755 4.502 4.502 0 015.874 2.636.818.818 0 01-.36.98A7.465 7.465 0 0114.5 16z"/></svg>
-          ${g.member_count} ${g.member_count === 1 ? 'członek' : 'członków'}
-        </div>
+        <div style="font-size:12px;color:var(--text-muted)">${g.member_count || 0} członków</div>
       </div>`).join('');
-  } catch (err) {
-    showError('Błąd ładowania grup: ' + err.message);
-  }
+  } catch (err) { showError(err.message); }
 }
 
-// ── Open group detail ─────────────────────────────────────────────
+// ── Open group ────────────────────────────────────────────────────
 window.openGroup = async (gid) => {
   activeGroupId = gid;
   document.getElementById('groupDetail').style.display = 'block';
@@ -212,17 +342,16 @@ window.openGroup = async (gid) => {
   const [group, summary, txs] = await Promise.allSettled([
     groupsApi.get(gid),
     groupsApi.summary(gid),
-    groupsApi.transactions(gid, { per_page: 10 }),
+    groupsApi.transactions(gid, { per_page: 20 }),
   ]);
 
   if (group.status === 'fulfilled') {
     const g = group.value;
     document.getElementById('groupDetailName').textContent = g.name;
-    const ROLE_LABELS = { owner: 'Właściciel', admin: 'Administrator', member: 'Członek' };
+    const ROLE_LABELS = { owner:'Właściciel', admin:'Administrator', member:'Członek' };
     document.getElementById('groupDetailRole').textContent = ROLE_LABELS[g.my_role] || g.my_role;
     renderMembers(g.members || [], g.my_role);
   }
-
   if (summary.status === 'fulfilled') {
     const s = summary.value;
     document.getElementById('gdIncome').textContent  = formatCurrency(s.income_total);
@@ -231,22 +360,18 @@ window.openGroup = async (gid) => {
     b.textContent = formatCurrency(s.balance);
     b.className   = `metric-value ${s.balance >= 0 ? 'positive' : 'negative'}`;
   }
-
-  if (txs.status === 'fulfilled') {
-    renderGroupTx(txs.value.items || []);
-  }
-
+  if (txs.status === 'fulfilled') renderGroupTx(txs.value.items || []);
   document.getElementById('groupDetail').scrollIntoView({ behavior: 'smooth' });
 };
 
 function renderMembers(members, myRole) {
   const el = document.getElementById('membersList');
-  const ROLE_LABELS = { owner: 'Właściciel', admin: 'Admin', member: 'Członek' };
+  const ROLE_LABELS = { owner:'Właściciel', admin:'Admin', member:'Członek' };
   el.innerHTML = members.map(m => `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bg)">
       <div class="avatar" style="width:32px;height:32px;font-size:12px">${initials(m.first_name, m.last_name, m.email)}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;truncate">${m.first_name ? `${m.first_name} ${m.last_name||''}`.trim() : m.email}</div>
+        <div style="font-size:13px;font-weight:500">${m.first_name ? `${m.first_name} ${m.last_name||''}`.trim() : m.email}</div>
         <div style="font-size:11px;color:var(--text-muted)">${m.email}</div>
       </div>
       <span class="badge ${m.role === 'owner' ? 'badge-green' : m.role === 'admin' ? 'badge-blue' : 'badge-gray'}" style="font-size:10px">
@@ -257,18 +382,40 @@ function renderMembers(members, myRole) {
 
 function renderGroupTx(items) {
   const el = document.getElementById('groupTxList');
-  if (!items.length) { el.innerHTML = '<p class="text-muted text-sm">Brak transakcji</p>'; return; }
+  if (!items.length) { el.innerHTML = '<div class="empty-state" style="padding:24px"><p class="empty-title">Brak transakcji</p><p class="empty-desc">Dodaj pierwszą transakcję grupy.</p></div>'; return; }
   el.innerHTML = items.map(tx => `
-    <div class="tx-item">
+    <div class="tx-item" style="padding:10px 16px">
       <div class="tx-icon" style="background:${tx.type === 'income' ? 'var(--green-light)' : 'var(--red-light)'}">
         ${tx.type === 'income' ? '↑' : '↓'}
       </div>
       <div class="tx-info">
-        <div class="tx-title truncate">${tx.title}</div>
+        <div class="tx-title">${tx.title}</div>
         <div class="tx-meta">${formatDateShort(tx.date)}</div>
       </div>
       <div class="tx-amount ${tx.type}">${tx.type === 'income' ? '+' : '-'}${formatCurrency(tx.amount)}</div>
     </div>`).join('');
+}
+
+async function loadGroupCalendar() {
+  const el = document.getElementById('groupCalList');
+  el.innerHTML = '<div class="loading-overlay" style="padding:20px"><div class="spinner"></div></div>';
+  try {
+    const events = await groupsApi.events(activeGroupId);
+    if (!events.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:24px"><p class="empty-title">Brak wydarzeń</p><p class="empty-desc">Dodaj wydarzenie dla grupy.</p></div>';
+      return;
+    }
+    el.innerHTML = events.map(ev => `
+      <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--bg)">
+        <div style="width:10px;height:10px;border-radius:50%;background:${ev.color||'var(--accent)'};flex-shrink:0;margin-top:4px"></div>
+        <div>
+          <div style="font-size:13.5px;font-weight:500">${ev.title}</div>
+          <div style="font-size:12px;color:var(--text-muted)">${formatDateTime ? formatDateTime(ev.start) : ev.start}</div>
+        </div>
+      </div>`).join('');
+  } catch {
+    el.innerHTML = '<p class="text-muted text-sm" style="padding:16px">Nie można załadować kalendarza</p>';
+  }
 }
 
 // ── Group CRUD ────────────────────────────────────────────────────
@@ -276,7 +423,6 @@ document.getElementById('createGroupBtn').addEventListener('click', () => {
   document.getElementById('groupForm').reset();
   openModal(groupModal);
 });
-
 document.getElementById('groupModalClose').addEventListener('click', () => closeModal(groupModal));
 document.getElementById('groupCancelBtn').addEventListener('click',  () => closeModal(groupModal));
 
@@ -298,11 +444,7 @@ document.getElementById('groupForm').addEventListener('submit', async e => {
 });
 
 // ── Invite ────────────────────────────────────────────────────────
-document.getElementById('inviteMemberBtn').addEventListener('click', () => {
-  document.getElementById('inviteForm').reset();
-  openModal(inviteModal);
-});
-
+document.getElementById('inviteMemberBtn').addEventListener('click', () => { document.getElementById('inviteForm').reset(); openModal(inviteModal); });
 document.getElementById('inviteModalClose').addEventListener('click', () => closeModal(inviteModal));
 document.getElementById('inviteCancelBtn').addEventListener('click',  () => closeModal(inviteModal));
 
@@ -321,6 +463,87 @@ document.getElementById('inviteForm').addEventListener('submit', async e => {
     openGroup(activeGroupId);
   } catch (err) { showError(err.message); }
   finally { setLoading(btn, false); }
+});
+
+// ── Add Transaction ───────────────────────────────────────────────
+document.getElementById('addGroupTxBtn').addEventListener('click', () => {
+  document.getElementById('groupTxForm').reset();
+  document.getElementById('gtxDate').value = new Date().toISOString().slice(0,10);
+  openModal(groupTxModal);
+});
+document.getElementById('groupTxModalClose').addEventListener('click', () => closeModal(groupTxModal));
+document.getElementById('groupTxCancelBtn').addEventListener('click',  () => closeModal(groupTxModal));
+
+// Type toggle
+document.querySelectorAll('input[name="gtxType"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const ie = document.getElementById('gtxTypeExpense').checked;
+    document.getElementById('gtxBtnExpense').style.cssText = `padding:9px;border-radius:var(--radius);text-align:center;font-size:13px;font-weight:500;${ie?'border:2px solid var(--red);background:var(--red-light);color:var(--red-text)':'border:2px solid var(--border);background:white;color:var(--text-secondary)'}`;
+    document.getElementById('gtxBtnIncome').style.cssText  = `padding:9px;border-radius:var(--radius);text-align:center;font-size:13px;font-weight:500;${!ie?'border:2px solid var(--green);background:var(--green-light);color:var(--green-text)':'border:2px solid var(--border);background:white;color:var(--text-secondary)'}`;
+  });
+});
+
+document.getElementById('groupTxForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!activeGroupId) return;
+  const btn  = document.getElementById('groupTxSaveBtn');
+  const type = document.querySelector('input[name="gtxType"]:checked').value;
+  const payload = {
+    title:    document.getElementById('gtxTitle').value.trim(),
+    amount:   document.getElementById('gtxAmount').value,
+    type,
+    date:     document.getElementById('gtxDate').value || new Date().toISOString(),
+    description: document.getElementById('gtxDesc').value.trim(),
+    group_id: activeGroupId,
+  };
+  if (!payload.title || !payload.amount) { showError('Wypełnij tytuł i kwotę.'); return; }
+  setLoading(btn, true);
+  try {
+    await groupsApi.createTx(activeGroupId, payload);
+    showSuccess('Transakcja dodana!');
+    closeModal(groupTxModal);
+    openGroup(activeGroupId);
+  } catch (err) { showError(err.message); }
+  finally { setLoading(btn, false); }
+});
+
+// ── Add Event ─────────────────────────────────────────────────────
+document.getElementById('addGroupEventBtn').addEventListener('click', () => {
+  document.getElementById('groupEventForm').reset();
+  document.getElementById('gevStart').value = new Date().toISOString().slice(0,16);
+  openModal(groupEventModal);
+});
+document.getElementById('groupEventModalClose').addEventListener('click', () => closeModal(groupEventModal));
+document.getElementById('groupEventCancelBtn').addEventListener('click',  () => closeModal(groupEventModal));
+
+document.getElementById('groupEventForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!activeGroupId) return;
+  const btn = document.getElementById('groupEventSaveBtn');
+  const payload = {
+    title:       document.getElementById('gevTitle').value.trim(),
+    start:       document.getElementById('gevStart').value,
+    end:         document.getElementById('gevEnd').value || null,
+    description: document.getElementById('gevDesc').value.trim(),
+    group_id:    activeGroupId,
+  };
+  if (!payload.title) { showError('Tytuł jest wymagany.'); return; }
+  setLoading(btn, true);
+  try {
+    await groupsApi.createEvent(activeGroupId, payload);
+    showSuccess('Wydarzenie dodane!');
+    closeModal(groupEventModal);
+    document.querySelector('[data-tab="calendar"]').click();
+  } catch (err) { showError(err.message); }
+  finally { setLoading(btn, false); }
+});
+
+// ── Add Invoice (redirect) ────────────────────────────────────────
+document.getElementById('addGroupInvoiceBtn').addEventListener('click', () => {
+  // Zapisz group_id do sessionStorage i przekieruj na faktury
+  sessionStorage.setItem('invoice_group_id', activeGroupId);
+  sessionStorage.setItem('invoice_group_name', document.getElementById('groupDetailName').textContent);
+  window.location.href = 'invoices.html';
 });
 
 // ── Leave group ───────────────────────────────────────────────────

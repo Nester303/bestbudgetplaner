@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Profil — BudzetApp</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../css/main.css">
 </head>
 <body>
@@ -16,9 +16,9 @@
       <p class="page-subtitle">Zarządzaj swoim kontem</p>
     </div>
 
-    <div class="page-body page-enter" style="max-width:640px">
+    <div class="page-body page-enter" style="max-width:680px">
 
-      <!-- Avatar section -->
+      <!-- Avatar -->
       <div class="card" style="margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:16px">
           <div class="avatar avatar-lg" id="profileAvatar" style="font-size:18px">??</div>
@@ -32,7 +32,7 @@
         </div>
       </div>
 
-      <!-- Edit profile -->
+      <!-- Dane osobowe -->
       <div class="card" style="margin-bottom:16px">
         <div class="card-title">Dane osobowe</div>
         <form id="profileForm">
@@ -46,10 +46,9 @@
               <input class="form-input" id="pfLastName" type="text">
             </div>
           </div>
-          <div class="form-group" style="margin-bottom:16px">
+          <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Email</label>
             <input class="form-input" id="pfEmail" type="email" disabled style="opacity:0.6">
-            <span class="form-hint">Zmiana emaila nie jest jeszcze dostępna.</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
             <div class="form-group">
@@ -73,7 +72,42 @@
         </form>
       </div>
 
-      <!-- Change password -->
+      <!-- Dane sprzedawcy (do faktur) -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">Dane sprzedawcy</div>
+        <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:16px">
+          Dane używane automatycznie przy generowaniu faktur VAT.
+        </p>
+        <form id="sellerForm">
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+            <div class="form-group">
+              <label class="form-label">Nazwa firmy / Imię i nazwisko</label>
+              <input class="form-input" id="sellerName" type="text" placeholder="Jan Kowalski / Firma XYZ">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group">
+                <label class="form-label">NIP</label>
+                <input class="form-input" id="sellerNip" type="text" placeholder="0000000000">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email kontaktowy</label>
+                <input class="form-input" id="sellerEmail" type="email" placeholder="firma@example.com">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Adres</label>
+              <textarea class="form-textarea" id="sellerAddress" rows="2" placeholder="ul. Przykładowa 1&#10;00-001 Warszawa"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Numer konta bankowego</label>
+              <input class="form-input" id="sellerBank" type="text" placeholder="PL00 0000 0000 0000 0000 0000 0000">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit" id="saveSellerBtn">Zapisz dane sprzedawcy</button>
+        </form>
+      </div>
+
+      <!-- Zmień hasło -->
       <div class="card">
         <div class="card-title">Zmień hasło</div>
         <form id="passwordForm">
@@ -91,7 +125,15 @@
         </form>
       </div>
 
+      <!-- Wyloguj się -->
+      <div style="margin-top:16px;padding:16px;border-radius:var(--radius);border:1px solid var(--red-light);background:var(--red-light)">
+        <p style="font-size:13px;color:var(--red-text);margin-bottom:10px">Chcesz zakończyć sesję?</p>
+        <button class="btn btn-danger btn-sm" id="logoutBtn">Wyloguj się</button>
+      </div>
+
     </div>
+
+    <footer style="padding:14px 32px;font-size:11.5px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:auto;text-align:center">⚠️ Projekt edukacyjny — twórcy nie ponoszą odpowiedzialności za szkody wyrządzone poprzez użytkowanie tej aplikacji.</footer>
   </main>
 </div>
 
@@ -103,7 +145,6 @@ import { initials, setLoading, showSuccess, showError } from '../js/utils.js';
 if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; }
 renderSidebar('profile.html');
 
-// Load user data
 async function loadProfile() {
   try {
     const user = await authApi.me();
@@ -111,19 +152,25 @@ async function loadProfile() {
 
     document.getElementById('profileAvatar').textContent = initials(user.first_name, user.last_name, user.email);
     document.getElementById('profileName').textContent = user.first_name
-      ? `${user.first_name} ${user.last_name || ''}`.trim()
-      : user.email;
+      ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email;
     document.getElementById('profileEmail').textContent = user.email;
 
-    const roleBadge = document.getElementById('profileRoleBadge');
-    roleBadge.textContent = user.role === 'admin' ? 'Administrator' : 'Użytkownik';
-    roleBadge.className   = `badge ${user.role === 'admin' ? 'badge-green' : 'badge-gray'}`;
+    const badge = document.getElementById('profileRoleBadge');
+    badge.textContent = user.role === 'admin' ? 'Administrator' : 'Użytkownik';
+    badge.className   = `badge ${user.role === 'admin' ? 'badge-green' : 'badge-gray'}`;
 
     document.getElementById('pfFirstName').value = user.first_name || '';
     document.getElementById('pfLastName').value  = user.last_name  || '';
     document.getElementById('pfEmail').value     = user.email;
     document.getElementById('pfCurrency').value  = user.default_currency || 'PLN';
     document.getElementById('pfTimezone').value  = user.timezone || 'Europe/Warsaw';
+
+    // Dane sprzedawcy
+    document.getElementById('sellerName').value    = user.seller_name    || '';
+    document.getElementById('sellerNip').value     = user.seller_nip     || '';
+    document.getElementById('sellerEmail').value   = user.seller_email   || '';
+    document.getElementById('sellerAddress').value = user.seller_address || '';
+    document.getElementById('sellerBank').value    = user.seller_bank    || '';
   } catch {}
 }
 
@@ -132,8 +179,31 @@ document.getElementById('profileForm').addEventListener('submit', async e => {
   const btn = document.getElementById('saveProfileBtn');
   setLoading(btn, true);
   try {
-    // TODO: PUT /api/auth/me endpoint — to be added to backend
-    showSuccess('Profil zaktualizowany (lokalnie)');
+    await api.put('/auth/me', {
+      first_name:       document.getElementById('pfFirstName').value.trim(),
+      last_name:        document.getElementById('pfLastName').value.trim(),
+      default_currency: document.getElementById('pfCurrency').value,
+      timezone:         document.getElementById('pfTimezone').value,
+    });
+    showSuccess('Profil zaktualizowany!');
+    loadProfile();
+  } catch (err) { showError(err.message); }
+  finally { setLoading(btn, false); }
+});
+
+document.getElementById('sellerForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('saveSellerBtn');
+  setLoading(btn, true);
+  try {
+    await api.put('/auth/me', {
+      seller_name:    document.getElementById('sellerName').value.trim(),
+      seller_nip:     document.getElementById('sellerNip').value.trim(),
+      seller_email:   document.getElementById('sellerEmail').value.trim(),
+      seller_address: document.getElementById('sellerAddress').value.trim(),
+      seller_bank:    document.getElementById('sellerBank').value.trim(),
+    });
+    showSuccess('Dane sprzedawcy zapisane!');
   } catch (err) { showError(err.message); }
   finally { setLoading(btn, false); }
 });
@@ -147,11 +217,17 @@ document.getElementById('passwordForm').addEventListener('submit', async e => {
   const btn = document.getElementById('savePasswordBtn');
   setLoading(btn, true);
   try {
-    // TODO: POST /api/auth/change-password
+    await api.post('/auth/change-password', { new_password: pw1 });
     showSuccess('Hasło zmienione!');
     document.getElementById('passwordForm').reset();
   } catch (err) { showError(err.message); }
   finally { setLoading(btn, false); }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  if (confirm('Czy na pewno chcesz się wylogować?')) {
+    authApi.logout();
+  }
 });
 
 loadProfile();

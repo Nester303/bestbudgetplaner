@@ -85,7 +85,7 @@ services:
       # Osobny volume na cache Pythona żeby nie zaśmiecać źródeł
       - backend_cache:/app/__pycache__
     ports:
-      - "5000:5000"
+      - "127.0.0.1:3000:80"
     depends_on:
       db:
         condition: service_healthy
@@ -110,8 +110,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./frontend/src:/usr/share/nginx/html:ro
-    ports:
-      - "3000:80"
     networks:
       - frontend_net
 

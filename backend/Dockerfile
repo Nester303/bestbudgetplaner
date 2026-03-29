@@ -24,6 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     libffi-dev \
     curl \
+    fonts-dejavu-core \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Skopiuj i zainstaluj zależności Pythona

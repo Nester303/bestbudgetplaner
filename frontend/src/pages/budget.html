@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Planer Budżetu — BudzetApp</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../css/main.css">
+  <script src="../js/init.js"></script>
 </head>
 <body>
 <div class="app-layout">
@@ -97,6 +98,8 @@
         </div>
       </div>
     </div>
+
+    <footer style="padding:14px 32px;font-size:11.5px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:auto;text-align:center">⚠️ Projekt edukacyjny — twórcy nie ponoszą odpowiedzialności za szkody wyrządzone poprzez użytkowanie tej aplikacji.</footer>
   </main>
 </div>
 
@@ -145,6 +148,26 @@
         <div class="form-group">
           <label class="form-label">Opis</label>
           <textarea class="form-textarea" id="txDesc" rows="2"></textarea>
+        </div>
+        <!-- Cykliczne -->
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;color:var(--text-secondary)">
+          <input type="checkbox" id="txRecurring">
+          <span>Transakcja cykliczna</span>
+        </label>
+        <div id="recurringOpts" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label class="form-label">Częstotliwość</label>
+            <select class="form-select" id="txRecurrenceRule">
+              <option value="monthly">Miesięczna</option>
+              <option value="weekly">Tygodniowa</option>
+              <option value="yearly">Roczna</option>
+              <option value="daily">Codzienna</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Godzina wykonania</label>
+            <input class="form-input" type="time" id="txRecurrenceTime" value="09:00">
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -289,11 +312,29 @@ function renderRecurring(items) {
         <div style="font-size:13px;font-weight:500;truncate">${tx.title}</div>
         <div style="font-size:11px;color:var(--text-muted)">${tx.recurrence_rule || 'cykliczna'}</div>
       </div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:${tx.type==='income'?'var(--green)':'var(--red)'}">
-        ${formatCurrency(tx.amount)}
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-family:var(--font-mono);font-size:13px;color:${tx.type==='income'?'var(--green)':'var(--red)'}">
+          ${formatCurrency(tx.amount)}
+        </div>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Usuń cykliczność"
+          onclick="removeRecurring(${tx.id})" style="color:var(--text-muted)">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+          </svg>
+        </button>
       </div>
     </div>`).join('');
 }
+
+window.removeRecurring = async (id) => {
+  const ok = await confirmDialog('Usunąć cykliczność tej transakcji?', 'Usuń cykliczność');
+  if (!ok) return;
+  try {
+    await txApi.update(id, { is_recurring: false, recurrence_rule: null });
+    showSuccess('Cykliczność usunięta');
+    loadAll();
+  } catch (e) { showError(e.message); }
+};
 
 // ── Categories for modal ──────────────────────────────────────────
 async function loadCats() {
@@ -334,10 +375,19 @@ window.editTx = async (id) => {
     document.getElementById('txDesc').value   = tx.description || '';
     document.getElementById('txCategory').value = tx.category_id || '';
     document.getElementById(tx.type === 'income' ? 'typeIncome' : 'typeExpense').checked = true;
+    // Cykliczne
+    const isRec = !!tx.is_recurring;
+    document.getElementById('txRecurring').checked = isRec;
+    document.getElementById('recurringOpts').style.display = isRec ? 'grid' : 'none';
+    if (isRec) document.getElementById('txRecurrenceRule').value = tx.recurrence_rule || 'monthly';
     document.getElementById('txDeleteBtn').classList.remove('hidden');
     openModal(txModal);
   } catch {}
 };
+
+document.getElementById('txRecurring').addEventListener('change', function() {
+  document.getElementById('recurringOpts').style.display = this.checked ? 'grid' : 'none';
+});
 
 document.getElementById('txDeleteBtn').addEventListener('click', async () => {
   if (!editingId) return;
@@ -355,13 +405,16 @@ document.getElementById('txForm').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = document.getElementById('txSaveBtn');
   const type = document.querySelector('input[name="type"]:checked').value;
+  const isRec = document.getElementById('txRecurring').checked;
   const payload = {
-    title: document.getElementById('txTitle').value.trim(),
-    amount: document.getElementById('txAmount').value,
+    title:           document.getElementById('txTitle').value.trim(),
+    amount:          document.getElementById('txAmount').value,
     type,
-    date: document.getElementById('txDate').value || new Date().toISOString(),
-    category_id: document.getElementById('txCategory').value || null,
-    description: document.getElementById('txDesc').value.trim(),
+    date:            document.getElementById('txDate').value || new Date().toISOString(),
+    category_id:     document.getElementById('txCategory').value || null,
+    description:     document.getElementById('txDesc').value.trim(),
+    is_recurring:    isRec,
+    recurrence_rule: isRec ? document.getElementById('txRecurrenceRule').value : null,
   };
   if (!payload.title || !payload.amount) { showError('Wypełnij wymagane pola.'); return; }
 

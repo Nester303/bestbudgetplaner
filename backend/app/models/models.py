@@ -128,6 +128,8 @@ class Invoice(db.Model):
     id               = db.Column(db.Integer, primary_key=True)
     user_id          = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"),
                                   nullable=False, index=True)
+    group_id         = db.Column(db.Integer, db.ForeignKey("groups.id", ondelete="SET NULL"),
+                                  nullable=True)
     number           = db.Column(db.String(50), nullable=False)
     issue_date       = db.Column(db.Date, nullable=False)
     due_date         = db.Column(db.Date)

@@ -157,7 +157,12 @@ export const groupsApi = {
   removeMember:  (gid, uid)   => api.delete(`/groups/${gid}/members/${uid}`),
   leave:         (id)     => api.post(`/groups/${id}/leave`),
   transactions:  (id, p)  => api.get(`/groups/${id}/transactions`, p),
+  createTx:      (id, b)  => api.post(`/groups/${id}/transactions`, b),
   summary:       (id)     => api.get(`/groups/${id}/summary`),
+  events:        (id)     => api.get(`/groups/${id}/events`),
+  createEvent:   (id, b)  => api.post(`/groups/${id}/events`, b),
+  invoices:      (id)     => api.get(`/groups/${id}/invoices`),
+  createInvoice: (id, b)  => api.post(`/groups/${id}/invoices`, b),
 };
 
 // ── Invoices ────────────────────────────────────────────────────

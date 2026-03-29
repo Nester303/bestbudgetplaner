@@ -1,109 +1,67 @@
-# BudzetApp
+# BudzetApp — Aplikacja do zarządzania budżetem domowym
 
-Aplikacja webowa do zarządzania budżetem domowym z kalendarzem.
+Projekt edukacyjny. Twórcy nie ponoszą odpowiedzialności za szkody wynikłe z użytkowania.
 
-## Stack
+## Stack techniczny
 
-| Warstwa | Technologia |
-|---------|-------------|
-| Backend | Python 3.12 + Flask |
-| Baza    | PostgreSQL 16 |
-| Cache   | Redis 7 |
-| Frontend | HTML / CSS / JS |
-| Serwer  | Nginx |
-| Deploy  | Docker Compose |
-| Sieć    | Tailscale VPN + Cloudflare Tunnel |
-| CI/CD   | GitHub Actions |
+- **Backend**: Python 3.12 + Flask, PostgreSQL 16, Redis 7
+- **Frontend**: HTML/CSS/JS (vanilla, ES modules)
+- **Infrastruktura**: Docker Compose, Nginx, Cloudflare Tunnel
+- **Email**: Resend.com API
+- **CI/CD**: GitHub Actions → SSH przez Tailscale
 
----
+## Funkcjonalności
 
-## Szybki start (development)
+- Rejestracja i logowanie z weryfikacją emailem
+- Dashboard z wykresami przychodów i wydatków
+- Planer budżetu z transakcjami cyklicznymi
+- Kalendarz wydarzeń
+- Grupy budżetowe (wspólny budżet rodziny/firmy)
+- Faktury VAT z generowaniem PDF
+- Ciemny motyw
+- Reset hasła przez email
 
+## Uruchomienie produkcyjne
 ```bash
-# 1. Sklonuj repo
-git clone https://github.com/TWOJ_GITHUB/budzetapp.git
-cd budzetapp
-
-# 2. Zmienne środowiskowe
-cp .env.example .env
-# edytuj .env — uzupełnij hasła
-
-# 3. Uruchom
-make dev
-
-# 4. Migracje i seed (osobny terminal)
-make migrate
-make seed
-
-# Aplikacja działa na http://localhost
-# API: http://localhost/api/health
+cd /opt/budzetapp
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
----
-
-## Struktura gałęzi
-
-```
-main   ──────────────────────────────────→  produkcja (autodeploy)
-         ↑ merge PR
-dev    ──────────────────────────────────→  staging (autodeploy)
-         ↑ merge feature branches
-feature/nazwa-funkcji  (tworzysz lokalnie, PR → dev)
-hotfix/opis            (PR → main i dev)
-```
-
-### Workflow dla nowej funkcji
-
+## Migracje bazy danych
 ```bash
-git checkout dev
-git pull origin dev
-git checkout -b feature/moja-funkcja
-
-# ... kodowanie ...
-
-git add .
-git commit -m "feat: opis zmiany"
-git push origin feature/moja-funkcja
-# → otwórz Pull Request do dev na GitHubie
+docker exec -u root budzetapp_backend flask db upgrade
 ```
 
-### Konwencja commitów
-
-```
-feat:     nowa funkcja
-fix:      naprawa błędu
-refactor: refaktoryzacja bez zmiany funkcjonalności
-test:     dodanie/zmiana testów
-docs:     dokumentacja
-chore:    zmiany konfiguracji, CI, zależności
-```
-
----
-
-## Dostępne komendy
-
+## Logi
 ```bash
-make help          # pełna lista komend
-make dev           # uruchom development
-make test          # uruchom testy
-make migrate       # migracje bazy
-make shell-be      # bash w kontenerze backendu
-make shell-db      # psql w PostgreSQL
-make backup-db     # backup bazy danych
-make prod          # uruchom produkcję
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs backend --tail=50
 ```
 
----
+## Zmienne środowiskowe (.env)
 
-## CI/CD
+| Zmienna | Opis |
+|---------|------|
+| `SECRET_KEY` | Klucz aplikacji Flask |
+| `JWT_SECRET_KEY` | Klucz JWT |
+| `DATABASE_URL` | URL bazy PostgreSQL |
+| `REDIS_URL` | URL Redis |
+| `RESEND_API_KEY` | Klucz API Resend do wysyłki emaili |
+| `MAIL_DEFAULT_SENDER` | Adres nadawcy emaili |
+| `CORS_ORIGINS` | Dozwolone originy CORS |
 
-| Trigger | Workflow | Cel |
-|---------|----------|-----|
-| push / PR → `dev` | CI testy | weryfikacja |
-| push → `dev`  | CD staging | autodeploy staging |
-| push / PR → `main` | CI testy | weryfikacja |
-| push → `main` | CD produkcja | autodeploy prod z rollbackiem |
+## Architektura
+```
+Cloudflare → Nginx (port 80) → Backend Flask (port 5000)
+                             → Frontend (statyczne pliki HTML/JS/CSS)
+                             → PostgreSQL (port 5432, tylko localhost)
+                             → Redis (port 6379, tylko localhost)
+```
 
-GitHub Actions łączy się z serwerem przez **Tailscale VPN** → SSH.
+## Bezpieczeństwo
 
-Wymagane GitHub Secrets — patrz `deploy/GITHUB_SECRETS.md`.
+- SSH tylko przez Tailscale VPN
+- Port 80 i 443 tylko z Cloudflare IP
+- Porty 5000 i 3000 zablokowane w UFW
+- PostgreSQL i Redis tylko na localhost
+- JWT autentykacja
+- Weryfikacja emailem przy rejestracji

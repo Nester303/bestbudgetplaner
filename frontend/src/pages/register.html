@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rejestracja — BudzetApp</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../css/main.css">
+  <script src="../js/init.js"></script>
   <link rel="stylesheet" href="../css/auth.css">
 </head>
 <body>
@@ -56,8 +57,10 @@
             <div class="strength-bar" id="s2"></div>
             <div class="strength-bar" id="s3"></div>
             <div class="strength-bar" id="s4"></div>
+            <div class="strength-bar" id="s5"></div>
           </div>
           <span class="form-hint" id="strengthText"></span>
+          <div id="pwHints" style="margin-top:4px"></div>
         </div>
 
         <div class="form-group">
@@ -118,23 +121,60 @@ if (Auth.isLoggedIn()) window.location.href = 'dashboard.html';
 
 // Password strength
 const pwInput = document.getElementById('password');
-const bars    = [1,2,3,4].map(i => document.getElementById(`s${i}`));
+const bars    = [1,2,3,4,5].map(i => document.getElementById(`s${i}`));
 const strengthText = document.getElementById('strengthText');
 const COLORS = ['#ef4444','#f59e0b','#3b82f6','#10b981'];
 const LABELS = ['Słabe','Średnie','Dobre','Silne'];
 
+// Password strength validation
+// Criteria: 2+ uppercase, 2+ lowercase, 2+ digits, 2+ special, not consecutive chars
+function hasConsecutive(v) {
+  // Sprawdź czy są 3 lub więcej takich samych znaków pod rząd (np. aaa, 111)
+  for (let i = 0; i < v.length - 2; i++) {
+    if (v[i] === v[i+1] && v[i+1] === v[i+2]) return true;
+  }
+  return false;
+}
+
+function checkPassword(v) {
+  const upper   = (v.match(/[A-Z]/g) || []).length;
+  const lower   = (v.match(/[a-z]/g) || []).length;
+  const digits  = (v.match(/[0-9]/g) || []).length;
+  const special = (v.match(/[^A-Za-z0-9]/g) || []).length;
+  const noConsec = !hasConsecutive(v);
+
+  let score = 0;
+  const checks = [
+    { ok: upper   >= 2, label: `2 duże litery (masz ${upper})` },
+    { ok: lower   >= 2, label: `2 małe litery (masz ${lower})` },
+    { ok: digits  >= 2, label: `2 cyfry (masz ${digits})` },
+    { ok: special >= 2, label: `2 znaki specjalne (masz ${special})` },
+    { ok: noConsec,     label: 'Brak 3 takich samych znaków pod rząd' },
+  ];
+  score = checks.filter(c => c.ok).length;
+  return { score, checks };
+}
+
 pwInput.addEventListener('input', () => {
   const v = pwInput.value;
-  let score = 0;
-  if (v.length >= 8) score++;
-  if (/[A-Z]/.test(v)) score++;
-  if (/[0-9]/.test(v)) score++;
-  if (/[^A-Za-z0-9]/.test(v)) score++;
+  if (!v) {
+    bars.forEach(b => b.style.background = 'var(--border)');
+    strengthText.textContent = '';
+    return;
+  }
+  const { score, checks } = checkPassword(v);
+  const COLORS5 = ['#ef4444','#ef4444','#f59e0b','#3b82f6','#10b981','#10b981'];
+  const LABELS5 = ['Bardzo słabe','Słabe','Średnie','Dobre','Silne'];
   bars.forEach((b, i) => {
-    b.style.background = i < score ? COLORS[score - 1] : 'var(--border)';
+    b.style.background = i < score ? COLORS5[score] : 'var(--border)';
   });
-  strengthText.textContent = v.length ? LABELS[score - 1] || '' : '';
-  strengthText.style.color = score > 0 ? COLORS[score - 1] : '';
+  strengthText.textContent = LABELS5[Math.min(score, 4)] || '';
+  strengthText.style.color = COLORS5[score] || '';
+
+  // Show unmet criteria as hints
+  const unmet = checks.filter(c => !c.ok).map(c => c.label);
+  const hint = document.getElementById('pwHints');
+  if (hint) hint.innerHTML = unmet.length ? unmet.map(u => `<div style="color:var(--red-text);font-size:11px">✗ ${u}</div>`).join('') : '<div style="color:var(--green-text);font-size:11px">✓ Hasło spełnia wymagania</div>';
 });
 
 // Submit
@@ -159,6 +199,13 @@ form.addEventListener('submit', async (e) => {
   }
   if (password.length < 8) {
     errBox.textContent = 'Hasło musi mieć co najmniej 8 znaków.';
+    errBox.style.display = 'block';
+    return;
+  }
+  const { score, checks } = checkPassword(password);
+  if (score < 5) {
+    const unmet = checks.filter(c => !c.ok).map(c => c.label);
+    errBox.textContent = 'Hasło nie spełnia wymagań: ' + unmet.join(', ');
     errBox.style.display = 'block';
     return;
   }

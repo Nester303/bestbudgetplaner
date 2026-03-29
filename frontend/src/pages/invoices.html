@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Faktury — BudzetApp</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../css/main.css">
+  <script src="../js/init.js"></script>
 </head>
 <body>
 <div class="app-layout">
@@ -52,6 +53,8 @@
         </div>
       </div>
     </div>
+
+    <footer style="padding:14px 32px;font-size:11.5px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:auto;text-align:center">⚠️ Projekt edukacyjny — twórcy nie ponoszą odpowiedzialności za szkody wyrządzone poprzez użytkowanie tej aplikacji.</footer>
   </main>
 </div>
 
@@ -65,6 +68,30 @@
       </div>
     </div>
     <form id="invoiceForm">
+      <!-- Dane sprzedawcy -->
+      <div style="background:var(--accent-light);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;font-size:13px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-weight:600;color:var(--accent-text)">Dane sprzedawcy</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="loadSellerBtn" style="font-size:12px;color:var(--accent)">
+            Wczytaj z profilu
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px">Nazwa firmy / Imię i nazwisko</label>
+            <input class="form-input" id="invSellerName" type="text" placeholder="Jan Kowalski" style="font-size:13px;padding:7px 10px">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size:12px">NIP sprzedawcy</label>
+            <input class="form-input" id="invSellerNip" type="text" placeholder="0000000000" style="font-size:13px;padding:7px 10px">
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label class="form-label" style="font-size:12px">Adres</label>
+            <input class="form-input" id="invSellerAddress" type="text" placeholder="ul. Przykładowa 1, 00-001 Warszawa" style="font-size:13px;padding:7px 10px">
+          </div>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div class="form-group">
           <label class="form-label">Nabywca — nazwa</label>
@@ -157,6 +184,7 @@ renderSidebar('invoices.html');
 
 const invoiceModal = document.getElementById('invoiceModal');
 let items = [{ name: '', unit: 'szt.', qty: 1, unit_price_net: 0, vat_rate: 23 }];
+let editingInvoiceId = null;
 
 // ── Load invoices ─────────────────────────────────────────────────
 async function loadInvoices() {
@@ -189,22 +217,50 @@ function renderTable(invList) {
       <td class="cell-number" style="font-weight:500">${formatCurrency(inv.gross_total, inv.currency)}</td>
       <td>
         <div style="display:flex;gap:4px;justify-content:flex-end">
-          <a class="btn btn-ghost btn-icon btn-sm" href="${invoicesApi.pdfUrl(inv.id)}" 
-             target="_blank" title="Pobierz PDF" style="color:var(--accent)">
+          <!-- PDF — pobierz z tokenem -->
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="downloadPdf(${inv.id},'${inv.number}')" title="Pobierz PDF" style="color:var(--accent)">
             <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5z" clip-rule="evenodd"/></svg>
-          </a>
+          </button>
+          <!-- Edytuj — tylko draft -->
+          ${['draft','unpaid'].includes(inv.status) ? `
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="editInvoice(${inv.id})" title="Edytuj">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z"/></svg>
+          </button>` : ''}
+          <!-- Opłacona -->
           ${inv.status === 'unpaid' ? `
           <button class="btn btn-ghost btn-icon btn-sm" onclick="markPaid(${inv.id})" title="Oznacz jako opłacona" style="color:var(--green)">
             <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
           </button>` : ''}
+          <!-- Usuń -->
           ${['draft','unpaid'].includes(inv.status) ? `
           <button class="btn btn-ghost btn-icon btn-sm" onclick="deleteInvoice(${inv.id})" title="Usuń" style="color:var(--red)">
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd"/></svg>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5z" clip-rule="evenodd"/></svg>
           </button>` : ''}
         </div>
       </td>
     </tr>`).join('');
 }
+
+// ── Pobierz PDF z tokenem (fix JSON error) ───────────────────────
+window.downloadPdf = async (id, number) => {
+  try {
+    const token = Auth.getAccessToken();
+    const res = await fetch(`/api/invoices/${id}/pdf`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Błąd pobierania PDF' }));
+      throw new Error(err.error || 'Błąd pobierania PDF');
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `faktura-${number}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) { showError(e.message); }
+};
 
 window.markPaid = async (id) => {
   const ok = await confirmDialog('Oznaczyć fakturę jako opłaconą?', 'Zmień status');
@@ -220,10 +276,39 @@ window.deleteInvoice = async (id) => {
   catch (e) { showError(e.message); }
 };
 
+// ── Edycja faktury ────────────────────────────────────────────────
+window.editInvoice = async (id) => {
+  try {
+    const inv = await invoicesApi.get(id);
+    editingInvoiceId = id;
+    document.getElementById('invoiceModalTitle').textContent = 'Edytuj fakturę';
+    document.getElementById('invBuyerName').value    = inv.buyer_name    || '';
+    document.getElementById('invBuyerNip').value     = inv.buyer_nip     || '';
+    document.getElementById('invBuyerAddress').value = inv.buyer_address || '';
+    document.getElementById('invBuyerEmail').value   = inv.buyer_email   || '';
+    document.getElementById('invCurrency').value     = inv.currency      || 'PLN';
+    document.getElementById('invIssueDate').value    = inv.issue_date?.slice(0,10) || '';
+    document.getElementById('invDueDate').value      = inv.due_date?.slice(0,10)   || '';
+    document.getElementById('invNotes').value        = inv.notes         || '';
+    items = (inv.items || []).map(i => ({
+      name:           i.name,
+      unit:           i.unit,
+      qty:            i.qty,
+      unit_price_net: i.unit_price_net,
+      vat_rate:       i.vat_rate,
+    }));
+    if (!items.length) items = [{ name:'', unit:'szt.', qty:1, unit_price_net:0, vat_rate:23 }];
+    renderItems();
+    openModal(invoiceModal);
+  } catch (e) { showError(e.message); }
+};
+
 document.getElementById('statusFilter').addEventListener('change', loadInvoices);
 
-// ── Invoice form ──────────────────────────────────────────────────
+// ── Nowa faktura ──────────────────────────────────────────────────
 document.getElementById('createInvoiceBtn').addEventListener('click', () => {
+  editingInvoiceId = null;
+  document.getElementById('invoiceModalTitle').textContent = 'Nowa faktura';
   document.getElementById('invoiceForm').reset();
   items = [{ name: '', unit: 'szt.', qty: 1, unit_price_net: 0, vat_rate: 23 }];
   document.getElementById('invIssueDate').value = new Date().toISOString().slice(0,10);
@@ -239,45 +324,153 @@ document.getElementById('invoiceCancelBtn').addEventListener('click', () => clos
 document.getElementById('addItemBtn').addEventListener('click', () => {
   items.push({ name: '', unit: 'szt.', qty: 1, unit_price_net: 0, vat_rate: 23 });
   renderItems();
+  // Focus na nowym polu nazwy
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#itemsTableBody tr:last-child input');
+    if (inputs[0]) inputs[0].focus();
+  }, 0);
 });
 
+// ── renderItems — BEZ utraty focusa ──────────────────────────────
 function renderItems() {
-  const tbody = document.getElementById('itemsTableBody');
+  const tbody    = document.getElementById('itemsTableBody');
   const currency = document.getElementById('invCurrency').value || 'PLN';
-  let totalGross = 0;
 
-  tbody.innerHTML = items.map((item, idx) => {
+  // Zapamiętaj aktywny element
+  const activeEl  = document.activeElement;
+  const activeId  = activeEl?.dataset?.itemid;
+  const activeField = activeEl?.dataset?.itemfield;
+
+  let totalGross = 0;
+  const rows = items.map((item, idx) => {
     const gross = item.qty * item.unit_price_net * (1 + item.vat_rate / 100);
     totalGross += gross;
-    return `
-      <tr>
-        <td style="padding:5px 4px"><input class="form-input" style="padding:6px 8px;font-size:12.5px" value="${item.name}" oninput="updateItem(${idx},'name',this.value)" placeholder="Nazwa usługi/towaru"></td>
-        <td style="padding:5px 4px"><input class="form-input" style="padding:6px 8px;font-size:12.5px;width:50px" value="${item.unit}" oninput="updateItem(${idx},'unit',this.value)"></td>
-        <td style="padding:5px 4px"><input class="form-input" style="padding:6px 8px;font-size:12.5px;width:55px;text-align:right" type="number" min="0" step="0.01" value="${item.qty}" oninput="updateItem(${idx},'qty',+this.value)"></td>
-        <td style="padding:5px 4px"><input class="form-input" style="padding:6px 8px;font-size:12.5px;width:95px;text-align:right" type="number" min="0" step="0.01" value="${item.unit_price_net}" oninput="updateItem(${idx},'unit_price_net',+this.value)"></td>
-        <td style="padding:5px 4px">
-          <select class="form-select" style="padding:6px 8px;font-size:12.5px;width:65px" onchange="updateItem(${idx},'vat_rate',+this.value)">
-            ${[0,5,8,23].map(r => `<option value="${r}" ${r===item.vat_rate?'selected':''}>${r}%</option>`).join('')}
-          </select>
-        </td>
-        <td style="padding:5px 4px;text-align:right;font-family:var(--font-mono);font-size:12.5px;font-weight:500">${gross.toFixed(2)}</td>
-        <td style="padding:5px 4px">
-          ${items.length > 1 ? `<button type="button" class="btn btn-ghost btn-icon btn-sm" onclick="removeItem(${idx})" style="color:var(--red)">×</button>` : ''}
-        </td>
-      </tr>`;
-  }).join('');
+    return { idx, item, gross };
+  });
+
+  // Aktualizuj tylko wartości brutto (nie przebudowuj całej tabeli jeśli już istnieje)
+  const existingRows = tbody.querySelectorAll('tr');
+  if (existingRows.length === items.length) {
+    // Tylko zaktualizuj obliczone wartości
+    rows.forEach(({ idx, item, gross }) => {
+      const row = existingRows[idx];
+      if (!row) return;
+      const grossEl = row.querySelector('[data-gross]');
+      if (grossEl) grossEl.textContent = gross.toFixed(2);
+    });
+    document.getElementById('totalGross').textContent = `${totalGross.toFixed(2)} ${currency}`;
+    return;
+  }
+
+  // Pełna przebudowa (liczba pozycji się zmieniła)
+  tbody.innerHTML = rows.map(({ idx, item, gross }) => `
+    <tr>
+      <td style="padding:5px 4px">
+        <input class="form-input" style="padding:6px 8px;font-size:12.5px"
+          data-itemid="${idx}" data-itemfield="name"
+          value="${item.name.replace(/"/g,'&quot;')}"
+          placeholder="Nazwa usługi/towaru">
+      </td>
+      <td style="padding:5px 4px">
+        <input class="form-input" style="padding:6px 8px;font-size:12.5px;width:50px"
+          data-itemid="${idx}" data-itemfield="unit"
+          value="${item.unit}">
+      </td>
+      <td style="padding:5px 4px">
+        <input class="form-input" type="number" min="0" step="0.01"
+          style="padding:6px 8px;font-size:12.5px;width:55px;text-align:right"
+          data-itemid="${idx}" data-itemfield="qty"
+          value="${item.qty}">
+      </td>
+      <td style="padding:5px 4px">
+        <input class="form-input" type="number" min="0" step="0.01"
+          style="padding:6px 8px;font-size:12.5px;width:95px;text-align:right"
+          data-itemid="${idx}" data-itemfield="unit_price_net"
+          value="${item.unit_price_net}">
+      </td>
+      <td style="padding:5px 4px">
+        <select class="form-select" style="padding:6px 8px;font-size:12.5px;width:65px"
+          data-itemid="${idx}" data-itemfield="vat_rate">
+          ${[0,5,8,23].map(r => `<option value="${r}" ${r===item.vat_rate?'selected':''}>${r}%</option>`).join('')}
+        </select>
+      </td>
+      <td data-gross style="padding:5px 4px;text-align:right;font-family:var(--font-mono);font-size:12.5px;font-weight:500">${gross.toFixed(2)}</td>
+      <td style="padding:5px 4px">
+        ${items.length > 1 ? `<button type="button" class="btn btn-ghost btn-icon btn-sm"
+          data-removeidx="${idx}" style="color:var(--red)">×</button>` : ''}
+      </td>
+    </tr>`).join('');
 
   document.getElementById('totalGross').textContent = `${totalGross.toFixed(2)} ${currency}`;
+
+  // Delegacja zdarzeń — nie inline onchange/oninput (zapobiega utracie focusa)
+  tbody.addEventListener('input', handleItemInput, { once: false });
+  tbody.addEventListener('change', handleItemChange, { once: false });
+  tbody.addEventListener('click', handleItemClick, { once: false });
 }
 
-window.updateItem = (idx, field, value) => { items[idx][field] = value; renderItems(); };
-window.removeItem = (idx) => { items.splice(idx, 1); renderItems(); };
-document.getElementById('invCurrency').addEventListener('change', renderItems);
+// Usuwamy stare listenery i dodajemy nowe na tbody
+const tbody = document.getElementById('itemsTableBody');
+tbody.addEventListener('input', handleItemInput);
+tbody.addEventListener('change', handleItemChange);
+tbody.addEventListener('click', handleItemClick);
 
+function handleItemInput(e) {
+  const el = e.target;
+  const idx = el.dataset.itemid;
+  const field = el.dataset.itemfield;
+  if (idx === undefined || !field) return;
+  const numIdx = +idx;
+  const val = ['qty','unit_price_net'].includes(field) ? +el.value : el.value;
+  items[numIdx][field] = val;
+  // Przelicz tylko brutto dla tego wiersza
+  const gross = items[numIdx].qty * items[numIdx].unit_price_net * (1 + items[numIdx].vat_rate / 100);
+  const row = tbody.querySelectorAll('tr')[numIdx];
+  if (row) { const g = row.querySelector('[data-gross]'); if (g) g.textContent = gross.toFixed(2); }
+  // Suma
+  let total = 0;
+  items.forEach(i => total += i.qty * i.unit_price_net * (1 + i.vat_rate / 100));
+  document.getElementById('totalGross').textContent = `${total.toFixed(2)} ${document.getElementById('invCurrency').value || 'PLN'}`;
+}
+
+function handleItemChange(e) {
+  const el = e.target;
+  const idx = el.dataset.itemid;
+  const field = el.dataset.itemfield;
+  if (idx === undefined || !field) return;
+  items[+idx][field] = field === 'vat_rate' ? +el.value : el.value;
+  // Przelicz brutto
+  const numIdx = +idx;
+  const gross = items[numIdx].qty * items[numIdx].unit_price_net * (1 + items[numIdx].vat_rate / 100);
+  const row = tbody.querySelectorAll('tr')[numIdx];
+  if (row) { const g = row.querySelector('[data-gross]'); if (g) g.textContent = gross.toFixed(2); }
+  let total = 0;
+  items.forEach(i => total += i.qty * i.unit_price_net * (1 + i.vat_rate / 100));
+  document.getElementById('totalGross').textContent = `${total.toFixed(2)} ${document.getElementById('invCurrency').value || 'PLN'}`;
+}
+
+function handleItemClick(e) {
+  const btn = e.target.closest('[data-removeidx]');
+  if (!btn) return;
+  const idx = +btn.dataset.removeidx;
+  items.splice(idx, 1);
+  renderItems();
+}
+
+document.getElementById('invCurrency').addEventListener('change', () => {
+  let total = 0;
+  items.forEach(i => total += i.qty * i.unit_price_net * (1 + i.vat_rate / 100));
+  document.getElementById('totalGross').textContent = `${total.toFixed(2)} ${document.getElementById('invCurrency').value}`;
+});
+
+// ── Submit ────────────────────────────────────────────────────────
 document.getElementById('invoiceForm').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = document.getElementById('invoiceSaveBtn');
   const payload = {
+    seller_name:    document.getElementById('invSellerName').value.trim(),
+    seller_nip:     document.getElementById('invSellerNip').value.trim(),
+    seller_address: document.getElementById('invSellerAddress').value.trim(),
     buyer_name:    document.getElementById('invBuyerName').value.trim(),
     buyer_nip:     document.getElementById('invBuyerNip').value.trim(),
     buyer_address: document.getElementById('invBuyerAddress').value.trim(),
@@ -286,17 +479,40 @@ document.getElementById('invoiceForm').addEventListener('submit', async e => {
     issue_date:    document.getElementById('invIssueDate').value,
     due_date:      document.getElementById('invDueDate').value,
     notes:         document.getElementById('invNotes').value.trim(),
-    items,
+    items: items.map(i => ({
+      name: i.name, unit: i.unit,
+      qty: +i.qty, unit_price_net: +i.unit_price_net, vat_rate: +i.vat_rate
+    })),
   };
   setLoading(btn, true);
   try {
-    await invoicesApi.create(payload);
-    showSuccess('Faktura zapisana!');
+    if (editingInvoiceId) {
+      await invoicesApi.update(editingInvoiceId, payload);
+      showSuccess('Faktura zaktualizowana!');
+    } else {
+      await invoicesApi.create(payload);
+      showSuccess('Faktura zapisana!');
+    }
     closeModal(invoiceModal);
     loadInvoices();
   } catch (err) { showError(err.message); }
   finally { setLoading(btn, false); }
 });
+
+// ── Seller data ───────────────────────────────────────────────────
+function loadSellerFromProfile() {
+  const seller = JSON.parse(localStorage.getItem('seller_data') || '{}');
+  if (seller.name)    document.getElementById('invSellerName').value    = seller.name;
+  if (seller.nip)     document.getElementById('invSellerNip').value     = seller.nip;
+  if (seller.address) document.getElementById('invSellerAddress').value = seller.address;
+}
+
+document.getElementById('loadSellerBtn')?.addEventListener('click', loadSellerFromProfile);
+
+// Auto-load seller on open
+document.getElementById('createInvoiceBtn').addEventListener('click', () => {
+  loadSellerFromProfile();
+}, true);
 
 loadInvoices();
 renderItems();
