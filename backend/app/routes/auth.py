@@ -302,3 +302,13 @@ def logout():
     if redis_client:
         redis_client.setex(f"blacklist:{jti}", ttl, "1")
     return jsonify({"message": "Wylogowano pomyslnie"})
+
+
+@auth_bp.delete("/me")
+@jwt_required()
+def delete_account():
+    user_id = get_jwt_identity()
+    user    = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"message": "Konto zostalo usuniete"})
