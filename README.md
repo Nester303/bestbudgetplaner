@@ -1,6 +1,6 @@
 # BudzetApp — Aplikacja do zarządzania budżetem domowym
 
-Projekt edukacyjny. Twórcy nie ponoszą odpowiedzialności za szkody wynikłe z użytkowania.
+> ⚠️ Projekt edukacyjny. Twórcy nie ponoszą odpowiedzialności za szkody wynikłe z użytkowania.
 
 ## Stack techniczny
 
@@ -8,36 +8,45 @@ Projekt edukacyjny. Twórcy nie ponoszą odpowiedzialności za szkody wynikłe z
 - **Frontend**: HTML/CSS/JS (vanilla, ES modules)
 - **Infrastruktura**: Docker Compose, Nginx, Cloudflare Tunnel
 - **Email**: Resend.com API
-- **CI/CD**: GitHub Actions → SSH przez Tailscale
+- **CI/CD**: GitHub Actions → SSH przez Tailscale VPN
 
 ## Funkcjonalności
 
 - Rejestracja i logowanie z weryfikacją emailem
+- Reset hasła przez email
 - Dashboard z wykresami przychodów i wydatków
 - Planer budżetu z transakcjami cyklicznymi
 - Kalendarz wydarzeń
 - Grupy budżetowe (wspólny budżet rodziny/firmy)
-- Faktury VAT z generowaniem PDF
+- Faktury VAT z generowaniem PDF i danymi sprzedawcy
 - Ciemny motyw
-- Reset hasła przez email
+- Walidacja siły hasła
 
-## Uruchomienie produkcyjne
+## Uruchomienie
 ```bash
-cd /opt/budzetapp
+cp .env.example .env
+# Uzupełnij zmienne w .env
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
-
-## Migracje bazy danych
-```bash
 docker exec -u root budzetapp_backend flask db upgrade
 ```
 
-## Logi
+## Przydatne komendy
 ```bash
+# Logi backendu
 docker compose -f docker-compose.yml -f docker-compose.prod.yml logs backend --tail=50
+
+# Migracje bazy
+docker exec -u root budzetapp_backend flask db migrate -m "opis"
+docker exec -u root budzetapp_backend flask db upgrade
+
+# Restart wszystkiego
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate
+
+# Seed danych testowych
+docker exec -u root budzetapp_backend flask seed
 ```
 
-## Zmienne środowiskowe (.env)
+## Zmienne środowiskowe
 
 | Zmienna | Opis |
 |---------|------|
@@ -45,23 +54,24 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml logs backend --t
 | `JWT_SECRET_KEY` | Klucz JWT |
 | `DATABASE_URL` | URL bazy PostgreSQL |
 | `REDIS_URL` | URL Redis |
-| `RESEND_API_KEY` | Klucz API Resend do wysyłki emaili |
+| `RESEND_API_KEY` | Klucz API Resend |
 | `MAIL_DEFAULT_SENDER` | Adres nadawcy emaili |
 | `CORS_ORIGINS` | Dozwolone originy CORS |
+| `FRONTEND_URL` | URL frontendu |
 
 ## Architektura
 ```
-Cloudflare → Nginx (port 80) → Backend Flask (port 5000)
-                             → Frontend (statyczne pliki HTML/JS/CSS)
-                             → PostgreSQL (port 5432, tylko localhost)
-                             → Redis (port 6379, tylko localhost)
+Internet → Cloudflare → Nginx (80) → Backend Flask (5000)
+                                   → Frontend statyczny
+                      PostgreSQL (5432, localhost only)
+                      Redis (6379, localhost only)
 ```
 
 ## Bezpieczeństwo
 
 - SSH tylko przez Tailscale VPN
-- Port 80 i 443 tylko z Cloudflare IP
-- Porty 5000 i 3000 zablokowane w UFW
-- PostgreSQL i Redis tylko na localhost
-- JWT autentykacja
+- Port 80/443 tylko z Cloudflare IP
+- Porty 5000/3000 zablokowane w UFW
+- PostgreSQL i Redis niedostępne z zewnątrz
+- JWT autentykacja z blacklistą tokenów w Redis
 - Weryfikacja emailem przy rejestracji
