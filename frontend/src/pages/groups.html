@@ -268,6 +268,42 @@
 .group-tab:hover:not(.active) { color: var(--text-primary); }
 </style>
 
+
+<!-- Edit Role Modal -->
+<div class="modal-overlay hidden" id="editRoleModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Zmień rolę członka</span>
+      <div class="modal-close" id="editRoleModalClose">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/></svg>
+      </div>
+    </div>
+    <div style="padding-bottom:8px">
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px" id="editRoleMemberInfo"></p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:11px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer" id="roleOptAdmin">
+          <input type="radio" name="editRole" value="admin" style="margin-top:2px;accent-color:var(--accent)">
+          <div>
+            <div style="font-size:13.5px;font-weight:500">Administrator</div>
+            <div style="font-size:12px;color:var(--text-muted)">Zarządza transakcjami, fakturami i zaprasza członków.</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:11px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer" id="roleOptMember">
+          <input type="radio" name="editRole" value="member" style="margin-top:2px;accent-color:var(--accent)">
+          <div>
+            <div style="font-size:13.5px;font-weight:500">Członek</div>
+            <div style="font-size:12px;color:var(--text-muted)">Może dodawać i przeglądać transakcje grupy.</div>
+          </div>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="editRoleCancelBtn">Anuluj</button>
+        <button type="button" class="btn btn-primary btn-sm" id="editRoleConfirmBtn">Zmień rolę</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { renderSidebar } from '../js/sidebar.js';
 import { groupsApi, txApi, Auth } from '../js/api.js';
@@ -377,6 +413,15 @@ function renderMembers(members, myRole) {
       <span class="badge ${m.role === 'owner' ? 'badge-green' : m.role === 'admin' ? 'badge-blue' : 'badge-gray'}" style="font-size:10px">
         ${ROLE_LABELS[m.role] || m.role}
       </span>
+      ${myRole === 'owner' && m.role !== 'owner' ? `
+      <button class="btn btn-ghost btn-icon btn-sm" title="Zmień rolę"
+        onclick="openEditRole('${m.id}','${m.email}','${m.role}')">
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon btn-sm" title="Usuń z grupy" style="color:var(--red)"
+        onclick="removeMember('${m.id}','${m.email}')">
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5z" clip-rule="evenodd"/></svg>
+      </button>` : ''}
     </div>`).join('');
 }
 
@@ -549,7 +594,7 @@ document.getElementById('addGroupInvoiceBtn').addEventListener('click', () => {
 // ── Leave group ───────────────────────────────────────────────────
 document.getElementById('leaveGroupBtn').addEventListener('click', async () => {
   if (!activeGroupId) return;
-  const ok = await confirmDialog('Czy na pewno chcesz opuścić tę grupę?', 'Opuść grupę');
+  const ok = await confirmDialog('Czy na pewno chcesz opuścić tę grupę?', 'Opuść grupę', 'Opuść', 'btn-danger');
   if (!ok) return;
   try {
     await groupsApi.leave(activeGroupId);
@@ -563,6 +608,55 @@ document.getElementById('closeDetailBtn').addEventListener('click', () => {
   document.getElementById('groupDetail').style.display = 'none';
   activeGroupId = null;
 });
+
+
+// ── Edit Role ─────────────────────────────────────────────────────
+const editRoleModal = document.getElementById('editRoleModal');
+let editRoleUserId = null;
+
+window.openEditRole = (userId, email, currentRole) => {
+  editRoleUserId = userId;
+  document.getElementById('editRoleMemberInfo').textContent = `Zmień rolę użytkownika: ${email}`;
+  document.querySelector(`input[name="editRole"][value="${currentRole}"]`).checked = true;
+  openModal(editRoleModal);
+};
+
+document.getElementById('editRoleModalClose').addEventListener('click', () => closeModal(editRoleModal));
+document.getElementById('editRoleCancelBtn').addEventListener('click', () => closeModal(editRoleModal));
+
+document.getElementById('editRoleConfirmBtn').addEventListener('click', async () => {
+  if (!editRoleUserId || !activeGroupId) return;
+  const newRole = document.querySelector('input[name="editRole"]:checked')?.value;
+  if (!newRole) { showError('Wybierz rolę'); return; }
+  try {
+    const token = Auth.getAccessToken();
+    const res = await fetch(`/api/groups/${activeGroupId}/members/${editRoleUserId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ role: newRole })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Błąd zmiany roli'); }
+    showSuccess('Rola zmieniona!');
+    closeModal(editRoleModal);
+    openGroup(activeGroupId);
+  } catch (err) { showError(err.message); }
+});
+
+window.removeMember = async (userId, email) => {
+  if (!activeGroupId) return;
+  const ok = await confirmDialog(`Usunąć ${email} z grupy?`, 'Usuń członka', 'Usuń', 'btn-danger');
+  if (!ok) return;
+  try {
+    const token = Auth.getAccessToken();
+    const res = await fetch(`/api/groups/${activeGroupId}/members/${userId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Błąd usuwania'); }
+    showSuccess('Usunięto z grupy!');
+    openGroup(activeGroupId);
+  } catch (err) { showError(err.message); }
+};
 
 loadGroups();
 </script>

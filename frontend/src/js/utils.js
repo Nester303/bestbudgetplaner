@@ -4,9 +4,13 @@
 
 // ── Formatters ──────────────────────────────────────────────────
 export function formatCurrency(amount, currency = 'PLN') {
+  const num = Number(amount) || 0;
   return new Intl.NumberFormat('pl-PL', {
-    style: 'currency', currency, minimumFractionDigits: 2,
-  }).format(Number(amount) || 0);
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
 }
 
 export function formatDate(dateStr, opts = {}) {
@@ -103,7 +107,7 @@ export function closeModal(overlay) {
   setTimeout(() => overlay.classList.add('hidden'), 200);
 }
 
-export function confirmDialog(message, title = 'Potwierdź') {
+export function confirmDialog(message, title = 'Potwierdź', confirmText = 'Usuń', confirmClass = 'btn-danger') {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay hidden';
@@ -115,7 +119,7 @@ export function confirmDialog(message, title = 'Potwierdź') {
         <p style="font-size:14px;color:var(--text-secondary);line-height:1.6">${message}</p>
         <div class="modal-footer">
           <button class="btn btn-secondary btn-sm" id="_cancel">Anuluj</button>
-          <button class="btn btn-danger btn-sm" id="_confirm">Usuń</button>
+          <button class="btn ${confirmClass} btn-sm" id="_confirm">${confirmText}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);

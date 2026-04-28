@@ -263,7 +263,7 @@ window.downloadPdf = async (id, number) => {
 };
 
 window.markPaid = async (id) => {
-  const ok = await confirmDialog('Oznaczyć fakturę jako opłaconą?', 'Zmień status');
+  const ok = await confirmDialog('Oznaczyć fakturę jako opłaconą?', 'Zmień status', 'Potwierdź', 'btn-primary');
   if (!ok) return;
   try { await invoicesApi.setStatus(id, 'paid'); showSuccess('Oznaczono jako opłaconą'); loadInvoices(); }
   catch (e) { showError(e.message); }

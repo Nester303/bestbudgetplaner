@@ -390,7 +390,7 @@ img { display: block; max-width: 100%; }
 .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 
 .btn-secondary {
-  background: white;
+  background: var(--bg-card);
   color: var(--text-primary);
   border-color: var(--border-strong);
 }
@@ -548,7 +548,7 @@ tbody tr { transition: background 0.1s; }
 .modal-overlay.open { opacity: 1; }
 
 .modal {
-  background: white;
+  background: var(--bg-card);
   border-radius: var(--radius-xl);
   padding: 24px;
   width: 100%;
@@ -740,7 +740,7 @@ tbody tr { transition: background 0.1s; }
 }
 
 .period-tab.active {
-  background: white;
+  background: var(--bg-card);
   color: var(--text-primary);
   box-shadow: var(--shadow-sm);
 }
@@ -1069,3 +1069,65 @@ html.dark .modal         { background: var(--bg-card); }
 html.dark .modal-overlay { background: rgba(0,0,0,0.7); }
 html.dark .period-tabs   { background: var(--bg-hover); border-color: var(--border); }
 html.dark .period-tab.active { background: var(--bg-card); }
+
+/* ── Dark mode fixes ────────────────────────────────────────────── */
+[data-theme="dark"] .modal            { background: var(--bg-card); }
+[data-theme="dark"] .btn-secondary    { background: var(--bg-hover); }
+[data-theme="dark"] .period-tab.active{ background: var(--bg-hover); }
+[data-theme="dark"] .form-input,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .form-textarea    { background: var(--bg-input); color: var(--text-primary); border-color: var(--border-strong); }
+[data-theme="dark"] .form-input::placeholder { color: var(--text-muted); }
+[data-theme="dark"] table             { color: var(--text-primary); }
+[data-theme="dark"] thead             { background: var(--bg-hover); }
+[data-theme="dark"] .card             { background: var(--bg-card); }
+[data-theme="dark"] .modal-overlay    { background: rgba(0,0,0,0.65); }
+
+/* FullCalendar dark mode */
+[data-theme="dark"] .fc-theme-standard td,
+[data-theme="dark"] .fc-theme-standard th,
+[data-theme="dark"] .fc-theme-standard .fc-scrollgrid { border-color: var(--border); }
+[data-theme="dark"] .fc-col-header-cell-cushion,
+[data-theme="dark"] .fc-daygrid-day-number { color: var(--text-secondary); }
+[data-theme="dark"] .fc-daygrid-day         { background: var(--bg-card); }
+[data-theme="dark"] .fc-daygrid-day:hover   { background: var(--bg-hover); }
+[data-theme="dark"] .fc-day-today           { background: rgba(16,185,129,0.08) !important; }
+[data-theme="dark"] .fc-button              { background: var(--bg-hover) !important; color: var(--text-primary) !important; border-color: var(--border-strong) !important; }
+[data-theme="dark"] .fc-button-active,
+[data-theme="dark"] .fc-button:hover        { background: var(--accent) !important; color: #fff !important; }
+[data-theme="dark"] .fc-toolbar-title       { color: var(--text-primary); }
+[data-theme="dark"] .fc-timegrid-slot,
+[data-theme="dark"] .fc-timegrid-axis       { background: var(--bg-card); color: var(--text-muted); }
+[data-theme="dark"] .fc-popover             { background: var(--bg-card); border-color: var(--border-strong); }
+[data-theme="dark"] .fc-popover-header      { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Type toggle buttons w modalach - dark mode */
+[data-theme="dark"] #typeBtnIncome,
+[data-theme="dark"] #typeBtnExpense,
+[data-theme="dark"] #gtxBtnIncome,
+[data-theme="dark"] #gtxBtnExpense { background: var(--bg-hover) !important; }
+
+/* ── Force dark mode backgrounds (override inline + lib styles) ── */
+[data-theme="dark"] .modal,
+[data-theme="dark"] .modal-overlay > div,
+[data-theme="dark"] [class*="modal"] { background-color: #1c1e22 !important; color: var(--text-primary) !important; }
+[data-theme="dark"] .modal-header     { background-color: #1c1e22 !important; border-color: var(--border) !important; }
+[data-theme="dark"] .modal-footer     { background-color: #1c1e22 !important; border-color: var(--border) !important; }
+[data-theme="dark"] .btn-secondary    { background-color: var(--bg-hover) !important; color: var(--text-primary) !important; }
+[data-theme="dark"] .period-tab       { background: none !important; color: var(--text-secondary) !important; }
+[data-theme="dark"] .period-tab.active{ background: var(--bg-hover) !important; color: var(--text-primary) !important; box-shadow: none !important; }
+
+/* Calendar toolbar buttons */
+[data-theme="dark"] .fc-button-group .fc-button,
+[data-theme="dark"] .fc-button                    { background: var(--bg-hover) !important; color: var(--text-primary) !important; border-color: var(--border-strong) !important; }
+[data-theme="dark"] .fc-button-active             { background: var(--accent) !important; color: #fff !important; }
+[data-theme="dark"] .fc-daygrid-day,
+[data-theme="dark"] .fc-timegrid-col              { background: var(--bg-card) !important; }
+[data-theme="dark"] .fc-day-today                 { background: rgba(16,185,129,0.1) !important; }
+[data-theme="dark"] .fc-scrollgrid,
+[data-theme="dark"] .fc-scrollgrid-section td,
+[data-theme="dark"] .fc-scrollgrid-section th     { border-color: var(--border) !important; }
+[data-theme="dark"] .fc-col-header-cell           { background: var(--bg-hover) !important; }
+[data-theme="dark"] .fc-col-header-cell-cushion   { color: var(--text-secondary) !important; }
+[data-theme="dark"] .fc-daygrid-day-number        { color: var(--text-secondary) !important; }
+[data-theme="dark"] .fc-toolbar-title             { color: var(--text-primary) !important; }

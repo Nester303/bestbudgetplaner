@@ -209,3 +209,31 @@ def send_invoice(iid):
     except Exception as exc:
         current_app.logger.error("Mail error: %s", exc)
         return jsonify({"error": "Błąd wysyłki"}), 500
+
+
+# --------------------------------------------------------
+# PATCH /api/invoices/<invoice_id>/status
+# --------------------------------------------------------
+_ALLOWED_TRANSITIONS = {
+    'draft':     ['unpaid', 'cancelled'],
+    'unpaid':    ['paid', 'cancelled'],
+    'paid':      [],
+    'cancelled': []
+}
+
+@invoices_bp.patch('/<int:invoice_id>/status')
+@jwt_required()
+def update_invoice_status(invoice_id):
+    user_id = int(get_jwt_identity())
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=user_id).first_or_404()
+    data = request.get_json()
+    new_status = data.get('status')
+    if not new_status:
+        return jsonify({'error': 'VALIDATION_ERROR', 'message': 'Brak pola status.'}), 400
+    allowed = _ALLOWED_TRANSITIONS.get(invoice.status, [])
+    if new_status not in allowed:
+        return jsonify({'error': 'INVALID_TRANSITION',
+            'message': f'Nie można zmienić statusu z "{invoice.status}" na "{new_status}".'}), 422
+    invoice.status = new_status
+    db.session.commit()
+    return jsonify({'message': 'Status zaktualizowany.', 'id': invoice.id, 'status': invoice.status}), 200

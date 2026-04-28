@@ -389,3 +389,4 @@ def create_group_event(gid):
     db.session.add(e)
     db.session.commit()
     return jsonify(e.to_dict()), 201
+
