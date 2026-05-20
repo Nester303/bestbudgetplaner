@@ -10,9 +10,10 @@
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/main.min.css" rel="stylesheet">
   <style>
     .fc { font-family: var(--font-body) !important; font-size: 13px; }
-    .fc .fc-toolbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+    .fc .fc-toolbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; color: var(--color-text-primary) !important; }
     .fc .fc-button {
-      background: white !important; border: 1px solid var(--border) !important;
+      background: var(--color-background-primary) !important;
+      border: 1px solid var(--border) !important;
       color: var(--text-primary) !important; font-size: 12.5px !important;
       box-shadow: none !important; font-family: var(--font-body) !important;
       border-radius: var(--radius-sm) !important; padding: 5px 10px !important;
@@ -27,6 +28,40 @@
     .fc .fc-daygrid-event { padding: 2px 5px !important; }
     .fc .fc-scrollgrid { border-color: var(--border) !important; }
     .fc .fc-scrollgrid td, .fc .fc-scrollgrid th { border-color: var(--border) !important; }
+
+    /* Wyszarzone odznaczone wydarzenie */
+    .fc-event.ev-dismissed { opacity: 0.38 !important; filter: grayscale(0.5); }
+
+    /* Etykieta grupy w modalu */
+    .group-badge-modal {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: var(--border-radius-md);
+      font-size: 12.5px;
+      color: var(--color-text-secondary);
+    }
+    .group-badge-modal .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      flex-shrink: 0;
+    }
+    .group-badge-modal strong { color: var(--color-text-primary); }
+
+    .btn-dismiss {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: var(--border-radius-md);
+      font-size: 12.5px; font-weight: 500;
+      border: 1px solid var(--color-border-tertiary);
+      background: var(--color-background-primary);
+      color: var(--color-text-secondary); cursor: pointer;
+      transition: all 0.12s;
+    }
+    .btn-dismiss:hover { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.3); color: #b91c1c; }
   </style>
 </head>
 <body>
@@ -49,7 +84,6 @@
         <div id="calendar"></div>
       </div>
     </div>
-
     <footer style="padding:14px 32px;font-size:11.5px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:auto;text-align:center">⚠️ Projekt edukacyjny — twórcy nie ponoszą odpowiedzialności za szkody wyrządzone poprzez użytkowanie tej aplikacji.</footer>
   </main>
 </div>
@@ -65,6 +99,13 @@
     </div>
     <form id="eventForm">
       <div style="display:flex;flex-direction:column;gap:12px">
+
+        <!-- Etykieta grupy (widoczna tylko przy edycji grupowego) -->
+        <div class="group-badge-modal hidden" id="groupBadge">
+          <div class="dot" id="groupBadgeDot"></div>
+          Wydarzenie grupy: <strong id="groupBadgeName"></strong>
+        </div>
+
         <div class="form-group">
           <label class="form-label">Tytuł <span class="required">*</span></label>
           <input class="form-input" id="evTitle" type="text" required>
@@ -95,12 +136,22 @@
             <input class="form-input" id="evColor" type="color" value="#10b981" style="padding:4px;height:38px">
           </div>
         </div>
+
+        <!-- Selektor grupy (tylko nowe wydarzenia) -->
+        <div class="form-group" id="groupSelectWrap">
+          <label class="form-label">Przypisz do grupy</label>
+          <select class="form-select" id="evGroup">
+            <option value="">— Moje wydarzenie (bez grupy) —</option>
+          </select>
+        </div>
+
         <div class="form-group">
           <label class="form-label">Opis</label>
           <textarea class="form-textarea" id="evDesc" rows="2"></textarea>
         </div>
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn-dismiss hidden" id="evDismissBtn">Odznacz się</button>
         <button type="button" class="btn btn-danger btn-sm hidden" id="evDeleteBtn">Usuń</button>
         <button type="button" class="btn btn-secondary btn-sm" id="evCancelBtn">Anuluj</button>
         <button type="submit" class="btn btn-primary btn-sm" id="evSaveBtn">Zapisz</button>
@@ -112,19 +163,40 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/main.min.js"></script>
 <script type="module">
 import { renderSidebar } from '../js/sidebar.js';
-import { eventsApi, Auth } from '../js/api.js';
+import { eventsApi, groupsApi, Auth } from '../js/api.js';
 import { openModal, closeModal, setLoading, showSuccess, showError, confirmDialog } from '../js/utils.js';
 
 if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; }
 renderSidebar('calendar.html');
 
-const eventModal  = document.getElementById('eventModal');
-let editingId     = null;
-let calendar      = null;
+// ── Dismissed events (localStorage) ──────────────────────────────
+const DISMISS_KEY = 'dismissed_events';
+const getDismissed = () => { try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]'); } catch { return []; } };
+const addDismissed = id => { const d = getDismissed(); if (!d.includes(String(id))) { d.push(String(id)); localStorage.setItem(DISMISS_KEY, JSON.stringify(d)); } };
+const removeDismissed = id => localStorage.setItem(DISMISS_KEY, JSON.stringify(getDismissed().filter(x => x !== String(id))));
+const isDismissed = id => getDismissed().includes(String(id));
 
-// ── Init FullCalendar ─────────────────────────────────────────────
-const calEl = document.getElementById('calendar');
-calendar = new FullCalendar.Calendar(calEl, {
+// ── Moje grupy + moje role w nich ─────────────────────────────────
+let myGroups = [];
+let myGroupRoles = {};  // { group_id: 'owner'|'admin'|'member' }
+async function loadGroups() {
+  try {
+    const data = await groupsApi.list();
+    myGroups = Array.isArray(data) ? data : (data.groups || []);
+    myGroups.forEach(g => { myGroupRoles[g.id] = g.my_role || 'member'; });
+    const sel = document.getElementById('evGroup');
+    sel.innerHTML = '<option value="">— Moje wydarzenie (bez grupy) —</option>' +
+      myGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+  } catch { myGroups = []; }
+}
+loadGroups();
+
+const eventModal = document.getElementById('eventModal');
+let editingId    = null;
+let calendar     = null;
+
+// ── FullCalendar ──────────────────────────────────────────────────
+calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
   initialView:  'dayGridMonth',
   locale:       'pl',
   height:       'auto',
@@ -135,42 +207,96 @@ calendar = new FullCalendar.Calendar(calEl, {
     right:  'dayGridMonth,timeGridWeek,timeGridDay',
   },
   buttonText: { today: 'Dziś', month: 'Miesiąc', week: 'Tydzień', day: 'Dzień' },
-  editable:    true,
-  selectable:  true,
+  editable:   true,
+  selectable: true,
+
   events: async (info, success, fail) => {
     try {
       const evs = await eventsApi.list({ start: info.startStr, end: info.endStr });
+      const dismissed = getDismissed();
       success(evs.map(e => ({
-        id:              e.id,
-        title:           e.title,
+        id:              String(e.id),
+        title:           e.group_name ? `${e.title} · ${e.group_name}` : e.title,
         start:           e.start,
         end:             e.end,
         backgroundColor: e.color || '#10b981',
-        extendedProps:   { description: e.description, category: e.category },
+        classNames:      dismissed.includes(String(e.id)) ? ['ev-dismissed'] : [],
+        extendedProps: {
+          realTitle:   e.title,
+          description: e.description,
+          category:    e.category,
+          group_id:    e.group_id,
+          group_name:  e.group_name,
+          user_id:     e.user_id,
+        },
       })));
     } catch { fail(); }
   },
+
   select: (info) => {
     editingId = null;
     document.getElementById('eventModalTitle').textContent = 'Nowe wydarzenie';
     document.getElementById('eventForm').reset();
     document.getElementById('evStart').value = info.startStr.slice(0,16);
     document.getElementById('evEnd').value   = info.endStr.slice(0,16);
+    document.getElementById('evColor').value = '#10b981';
     document.getElementById('evDeleteBtn').classList.add('hidden');
+    document.getElementById('evDismissBtn').classList.add('hidden');
+    document.getElementById('groupBadge').classList.add('hidden');
+    document.getElementById('groupSelectWrap').classList.remove('hidden');
+    document.getElementById('evGroup').value = '';
     openModal(eventModal);
   },
+
   eventClick: (info) => {
     editingId = info.event.id;
-    document.getElementById('eventModalTitle').textContent = 'Edytuj wydarzenie';
-    document.getElementById('evTitle').value    = info.event.title;
+    const ep  = info.event.extendedProps;
+
+    document.getElementById('eventModalTitle').textContent = 'Wydarzenie';
+    document.getElementById('evTitle').value    = ep.realTitle || info.event.title;
     document.getElementById('evStart').value    = info.event.start?.toISOString().slice(0,16) || '';
     document.getElementById('evEnd').value      = info.event.end?.toISOString().slice(0,16) || '';
     document.getElementById('evColor').value    = info.event.backgroundColor || '#10b981';
-    document.getElementById('evCategory').value = info.event.extendedProps.category || 'other';
-    document.getElementById('evDesc').value     = info.event.extendedProps.description || '';
-    document.getElementById('evDeleteBtn').classList.remove('hidden');
+    document.getElementById('evCategory').value = ep.category || 'other';
+    document.getElementById('evDesc').value     = ep.description || '';
+    document.getElementById('groupSelectWrap').classList.add('hidden');
+
+    // Etykieta grupy
+    if (ep.group_name) {
+      document.getElementById('groupBadge').classList.remove('hidden');
+      document.getElementById('groupBadgeName').textContent = ep.group_name;
+      document.getElementById('groupBadgeDot').style.background = info.event.backgroundColor;
+    } else {
+      document.getElementById('groupBadge').classList.add('hidden');
+    }
+
+    // Kto może usunąć?
+    const currentUser = Auth.getUser();
+    const currentId   = String(currentUser?.id || '');
+    const isOwner     = String(ep.user_id) === currentId;
+    const isAppAdmin  = Auth.isAdmin();
+
+    // Admin grupy lub właściciel może usunąć
+    let canDelete = isOwner || isAppAdmin;
+    if (!canDelete && ep.group_id) {
+      const myRole = myGroupRoles[ep.group_id];
+      canDelete = myRole === 'owner' || myRole === 'admin';
+    }
+
+    // Odznacz się — tylko dla nietwórców w grupach
+    const canDismiss = !isOwner && ep.group_id && !canDelete;
+
+    document.getElementById('evDeleteBtn').classList.toggle('hidden', !canDelete);
+    document.getElementById('evDismissBtn').classList.toggle('hidden', !canDismiss);
+
+    if (canDismiss) {
+      document.getElementById('evDismissBtn').textContent =
+        isDismissed(editingId) ? '✓ Wróć do wydarzenia' : '✕ Odznacz się';
+    }
+
     openModal(eventModal);
   },
+
   eventDrop: async (info) => {
     try {
       await eventsApi.update(info.event.id, {
@@ -183,21 +309,41 @@ calendar = new FullCalendar.Calendar(calEl, {
 
 calendar.render();
 
-// ── Add event button ──────────────────────────────────────────────
+// ── Nowe wydarzenie (przycisk) ────────────────────────────────────
 document.getElementById('addEventBtn').addEventListener('click', () => {
   editingId = null;
   document.getElementById('eventModalTitle').textContent = 'Nowe wydarzenie';
   document.getElementById('eventForm').reset();
   document.getElementById('evStart').value = new Date().toISOString().slice(0,16);
+  document.getElementById('evColor').value = '#10b981';
   document.getElementById('evDeleteBtn').classList.add('hidden');
+  document.getElementById('evDismissBtn').classList.add('hidden');
+  document.getElementById('groupBadge').classList.add('hidden');
+  document.getElementById('groupSelectWrap').classList.remove('hidden');
+  document.getElementById('evGroup').value = '';
   openModal(eventModal);
 });
 
-// ── Modal controls ────────────────────────────────────────────────
+// ── Modal — zamknij ───────────────────────────────────────────────
 document.getElementById('eventModalClose').addEventListener('click', () => closeModal(eventModal));
 document.getElementById('evCancelBtn').addEventListener('click',     () => closeModal(eventModal));
 eventModal.addEventListener('click', e => { if (e.target === eventModal) closeModal(eventModal); });
 
+// ── Odznacz się ───────────────────────────────────────────────────
+document.getElementById('evDismissBtn').addEventListener('click', () => {
+  if (!editingId) return;
+  if (isDismissed(editingId)) {
+    removeDismissed(editingId);
+    showSuccess('Wróciłeś do wydarzenia.');
+  } else {
+    addDismissed(editingId);
+    showSuccess('Odznaczono — wydarzenie jest wyszarzone.');
+  }
+  calendar.refetchEvents();
+  closeModal(eventModal);
+});
+
+// ── Usuń ──────────────────────────────────────────────────────────
 document.getElementById('evDeleteBtn').addEventListener('click', async () => {
   if (!editingId) return;
   const ok = await confirmDialog('Czy na pewno chcesz usunąć to wydarzenie?', 'Usuń wydarzenie');
@@ -210,9 +356,11 @@ document.getElementById('evDeleteBtn').addEventListener('click', async () => {
   } catch (e) { showError(e.message); }
 });
 
+// ── Zapisz ────────────────────────────────────────────────────────
 document.getElementById('eventForm').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = document.getElementById('evSaveBtn');
+  const groupVal = document.getElementById('evGroup').value;
   const payload = {
     title:       document.getElementById('evTitle').value.trim(),
     start:       document.getElementById('evStart').value,
@@ -220,9 +368,9 @@ document.getElementById('eventForm').addEventListener('submit', async e => {
     color:       document.getElementById('evColor').value,
     category:    document.getElementById('evCategory').value,
     description: document.getElementById('evDesc').value.trim(),
+    group_id:    groupVal ? parseInt(groupVal) : null,
   };
   if (!payload.title) { showError('Tytuł jest wymagany.'); return; }
-
   setLoading(btn, true);
   try {
     if (editingId) {

@@ -44,24 +44,6 @@
         </div>
       </div>
 
-      <!-- Wykresy -->
-      <div class="grid-3 mb-4" style="grid-template-columns:1fr 1fr 1fr">
-        <!-- Wykres dzienny -->
-        <div class="card" style="grid-column:1/3">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <span class="card-title" style="margin:0">Przychody vs wydatki — per dzień</span>
-          </div>
-          <div style="height:180px;position:relative"><canvas id="dailyChart"></canvas></div>
-        </div>
-        <!-- Trend 6 miesięcy -->
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <span class="card-title" style="margin:0">Trend 6 miesięcy</span>
-          </div>
-          <div style="height:180px;position:relative"><canvas id="trendChart"></canvas></div>
-        </div>
-      </div>
-
       <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start">
 
         <!-- Transactions table -->
@@ -104,8 +86,14 @@
           <!-- Category chart -->
           <div class="card">
             <div class="card-title">Wydatki wg kategorii</div>
-            <div style="height:160px;position:relative;margin-bottom:10px"><canvas id="catChartCanvas"></canvas></div>
+            <div style="height:150px;position:relative;margin-bottom:10px"><canvas id="catChartCanvas"></canvas></div>
             <div id="catChart"></div>
+          </div>
+
+          <!-- Trend 6 miesięcy -->
+          <div class="card">
+            <div class="card-title">Trend 6 miesięcy</div>
+            <div style="height:130px;position:relative"><canvas id="trendChart"></canvas></div>
           </div>
 
           <!-- Recurring -->
@@ -250,9 +238,8 @@ async function loadAll() {
   document.getElementById('periodLabel').textContent =
     `${MONTHS[p.month-1]} ${p.year}`;
 
-  const type   = document.getElementById('filterType').value;
-  const cat    = document.getElementById('filterCat').value;
-  const txParams = { ...p, page, per_page: 20, ...(type && { type }), ...(cat && { category_id: cat }) };
+  const type = document.getElementById('filterType').value;
+  const txParams = { ...p, page, per_page: 20, ...(type && { type }) };
 
   const [summary, txs, cats, recurring] = await Promise.allSettled([
     budgetApi.summary(p),
@@ -265,7 +252,6 @@ async function loadAll() {
   if (txs.status       === 'fulfilled') renderTable(txs.value);
   if (cats.status      === 'fulfilled') renderCatChart(cats.value);
   if (recurring.status === 'fulfilled') renderRecurring(recurring.value);
-  loadDailyChart();
   loadTrendChart();
 }
 
@@ -278,11 +264,8 @@ function renderMetrics(s) {
 }
 
 function renderTable({ items: rawItems, total: rawTotal, pages: tp }) {
-  // Filtr kategorii po stronie klienta
   const catFilter = document.getElementById('filterCat')?.value;
-  const items = catFilter
-    ? (rawItems || []).filter(t => String(t.category_id) === String(catFilter))
-    : (rawItems || []);
+  const items = catFilter ? (rawItems||[]).filter(t=>String(t.category_id)===String(catFilter)) : (rawItems||[]);
   const total = catFilter ? items.length : rawTotal;
   totalPages = tp || 1;
   const tbody = document.getElementById('txTableBody');
@@ -322,45 +305,9 @@ function renderTable({ items: rawItems, total: rawTotal, pages: tp }) {
 window.changePage = (dir) => { page = Math.max(1, Math.min(totalPages, page + dir)); loadAll(); };
 
 
-// ── Charts ───────────────────────────────────────────────────────
-let dailyChartObj = null;
-let trendChartObj = null;
-let catChartObj   = null;
 const CAT_COLORS = ['#10b981','#378ADD','#EF9F27','#7F77DD','#D85A30','#D4537E','#639922','#0891b2'];
-
-async function loadDailyChart() {
-  try {
-    const p = getParams();
-    const data = await budgetApi.chart({ year: p.year, month: p.month, granularity: 'day' });
-    const days = Array.isArray(data) ? data : [];
-    const ctx  = document.getElementById('dailyChart')?.getContext('2d');
-    if (!ctx) return;
-    if (dailyChartObj) dailyChartObj.destroy();
-    dailyChartObj = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: days.map(d => d.label),
-        datasets: [
-          { label: 'Przychody', data: days.map(d => d.income||0), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 3 },
-          { label: 'Wydatki',   data: days.map(d => d.expense||0), backgroundColor: 'rgba(185,28,28,0.65)', borderRadius: 3 }
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top', labels: { font:{ size:11 }, boxWidth:10 } },
-          tooltip: { callbacks: { label: c => `${c.dataset.label}: ${formatCurrency(c.raw)}` } } },
-        scales: {
-          x: { grid: { display:false }, ticks: { font:{ size:10 } } },
-          y: { ticks: { font:{ size:10 }, callback: v => {
-            const n = Math.abs(v);
-            if (n >= 1000) return (v/1000).toFixed(1) + ' tys. zł';
-            return v + ' zł';
-          } } }
-        }
-      }
-    });
-  } catch(e) { console.error('Daily chart error:', e); }
-}
+let catChartObj  = null;
+let trendChartObj = null;
 
 async function loadTrendChart() {
   try {
@@ -381,15 +328,19 @@ async function loadTrendChart() {
       },
       options: {
         responsive:true, maintainAspectRatio:false,
-        plugins: { legend:{ position:'top', labels:{ font:{size:11}, boxWidth:10 } },
+        plugins: { legend:{ position:'top', labels:{ font:{size:10}, boxWidth:8 } },
           tooltip:{ callbacks:{ label: c=>`${c.dataset.label}: ${formatCurrency(c.raw)}` } } },
         scales: {
           x:{ grid:{display:false}, ticks:{font:{size:10}} },
-          y:{ ticks:{ font:{size:10}, callback: v=>v.toLocaleString('pl-PL',{notation:'compact'})+'zł' } }
+          y:{ ticks:{ font:{size:10}, callback: v => {
+            const n = Math.abs(v);
+            if (n >= 1000) return (v/1000).toFixed(0)+'k';
+            return v;
+          } } }
         }
       }
     });
-  } catch {}
+  } catch(e) { console.error('Trend chart:', e); }
 }
 
 function renderCatChart(items) {
@@ -399,8 +350,9 @@ function renderCatChart(items) {
     el.innerHTML = '<p class="text-muted text-sm">Brak wydatków</p>';
     return;
   }
-  const top = items.slice(0,6);
-  // Donut Chart.js
+  const top   = items.slice(0,6);
+  const total = top.reduce((s,c)=>s+(c.total||c.amount||0),0);
+
   if (ctx) {
     if (catChartObj) catChartObj.destroy();
     catChartObj = new Chart(ctx, {
@@ -414,13 +366,12 @@ function renderCatChart(items) {
       }
     });
   }
-  // Legenda + paski
-  const total = top.reduce((s,c)=>s+(c.total||c.amount||0),0);
+
   el.innerHTML = top.map((c,i) => `
     <div style="margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:9px;height:9px;border-radius:2px;background:${CAT_COLORS[i]};flex-shrink:0"></div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="width:8px;height:8px;border-radius:2px;background:${CAT_COLORS[i]};flex-shrink:0"></div>
           <span style="font-size:12px;font-weight:500">${c.name}</span>
         </div>
         <span style="font-size:11.5px;font-family:var(--font-mono);color:var(--text-secondary)">${formatCurrency(c.total||c.amount||0)}</span>
@@ -433,9 +384,9 @@ function renderCatChart(items) {
   // Aktualizuj filtr kategorii
   const sel = document.getElementById('filterCat');
   if (sel) {
-    const current = sel.value;
+    const cur = sel.value;
     sel.innerHTML = '<option value="">Wszystkie kategorie</option>' +
-      top.map(c=>`<option value="${c.id||c.category_id||''}" ${current===String(c.id||c.category_id||'')?'selected':''}>${c.name}</option>`).join('');
+      top.map(c=>`<option value="${c.id||c.category_id||''}" ${cur===String(c.id||c.category_id||'')?'selected':''}>${c.name}</option>`).join('');
   }
 }
 
