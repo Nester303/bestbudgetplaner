@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rejestracja — BudzetApp</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../css/main.css">
+  <script src="../js/init.js"></script>
+  <link rel="stylesheet" href="../css/auth.css">
+</head>
+<body>
+
+<div class="auth-layout">
+
+  <div class="auth-panel">
+    <div class="auth-form-wrap">
+
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M9.99 1.012C5.042 1.012 1 5.058 1 10c0 4.946 4.042 8.988 8.99 8.988C14.952 18.988 19 14.946 19 10c0-4.942-4.048-8.988-9.01-8.988zM10 5.5a.75.75 0 01.75.75v.807a4.62 4.62 0 011.743.733 3.257 3.257 0 011.007 1.29.75.75 0 01-1.39.567 1.757 1.757 0 00-.537-.698 3.12 3.12 0 00-.823-.407v2.3l.427.109c.31.079.633.181.93.352.298.172.578.417.79.748.214.334.353.74.353 1.249 0 .562-.181 1.077-.508 1.508-.316.42-.761.733-1.282.938a4.63 4.63 0 01-.71.189V14.5a.75.75 0 01-1.5 0v-.806a4.944 4.944 0 01-1.793-.762 3.515 3.515 0 01-1.143-1.422.75.75 0 011.393-.553c.14.356.367.638.648.84.297.214.665.364 1.095.454V9.937l-.308-.079a5.284 5.284 0 01-.994-.371 3.173 3.173 0 01-.84-.65C7.293 8.478 7 7.97 7 7.25c0-.546.178-1.04.488-1.455.306-.41.734-.718 1.228-.918A4.64 4.64 0 0110 4.75V5.5z" clip-rule="evenodd"/>
+          </svg>
+        </div>
+        <span class="auth-logo-text">BudzetApp</span>
+      </div>
+
+      <h1 class="auth-title">Utwórz konto</h1>
+      <p class="auth-subtitle">Bezpłatnie. Bez karty. Bez ograniczeń.</p>
+
+      <form class="auth-form" id="registerForm" novalidate>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label" for="first_name">Imię</label>
+            <input class="form-input" type="text" id="first_name" name="first_name"
+                   placeholder="Jan" autocomplete="given-name">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="last_name">Nazwisko</label>
+            <input class="form-input" type="text" id="last_name" name="last_name"
+                   placeholder="Kowalski" autocomplete="family-name">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Adres email <span class="required">*</span></label>
+          <input class="form-input" type="email" id="email" name="email"
+                 placeholder="jan@example.com" autocomplete="email" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Hasło <span class="required">*</span></label>
+          <input class="form-input" type="password" id="password" name="password"
+                 placeholder="min. 8 znaków" autocomplete="new-password" required>
+          <div class="password-strength" id="strengthBars">
+            <div class="strength-bar" id="s1"></div>
+            <div class="strength-bar" id="s2"></div>
+            <div class="strength-bar" id="s3"></div>
+            <div class="strength-bar" id="s4"></div>
+            <div class="strength-bar" id="s5"></div>
+          </div>
+          <span class="form-hint" id="strengthText"></span>
+          <div id="pwHints" style="margin-top:4px"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm">Potwierdź hasło <span class="required">*</span></label>
+          <input class="form-input" type="password" id="confirm" name="confirm"
+                 placeholder="powtórz hasło" autocomplete="new-password" required>
+        </div>
+
+        <div id="regError" style="display:none;padding:10px 12px;background:var(--red-light);
+             color:var(--red-text);border-radius:var(--radius);font-size:13px"></div>
+
+        <button class="btn btn-primary btn-full btn-lg" type="submit" id="regBtn">
+          Utwórz konto
+        </button>
+      </form>
+
+      <p class="auth-footer">
+        Masz już konto? <a href="login.html">Zaloguj się</a>
+      </p>
+
+    </div>
+  </div>
+
+  <div class="auth-hero">
+    <div class="auth-hero-content">
+      <h2 class="auth-hero-title">Twoje pieniądze, Twoje zasady.</h2>
+      <p class="auth-hero-desc">
+        Dołącz do tysięcy użytkowników, którzy mają pełną kontrolę nad swoim budżetem domowym.
+      </p>
+      <div class="auth-feature-list">
+        <div class="auth-feature">
+          <div class="auth-feature-dot"></div>
+          Przychody i wydatki w jednym miejscu
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-dot"></div>
+          Cykliczne transakcje z przypomnieniami
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-dot"></div>
+          Eksport danych i faktury PDF
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-dot"></div>
+          Udostępnianie budżetu rodzinie
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { api, Auth } from '../js/api.js';
+import { setLoading } from '../js/utils.js';
+
+if (Auth.isLoggedIn()) window.location.href = 'dashboard.html';
+
+// Password strength
+const pwInput = document.getElementById('password');
+const bars    = [1,2,3,4,5].map(i => document.getElementById(`s${i}`));
+const strengthText = document.getElementById('strengthText');
+const COLORS = ['#ef4444','#f59e0b','#3b82f6','#10b981'];
+const LABELS = ['Słabe','Średnie','Dobre','Silne'];
+
+// Password strength validation
+// Criteria: 2+ uppercase, 2+ lowercase, 2+ digits, 2+ special, not consecutive chars
+function hasConsecutive(v) {
+  // Sprawdź czy są 3 lub więcej takich samych znaków pod rząd (np. aaa, 111)
+  for (let i = 0; i < v.length - 2; i++) {
+    if (v[i] === v[i+1] && v[i+1] === v[i+2]) return true;
+  }
+  return false;
+}
+
+function checkPassword(v) {
+  const upper   = (v.match(/[A-Z]/g) || []).length;
+  const lower   = (v.match(/[a-z]/g) || []).length;
+  const digits  = (v.match(/[0-9]/g) || []).length;
+  const special = (v.match(/[^A-Za-z0-9]/g) || []).length;
+  const noConsec = !hasConsecutive(v);
+
+  let score = 0;
+  const checks = [
+    { ok: upper   >= 2, label: `2 duże litery (masz ${upper})` },
+    { ok: lower   >= 2, label: `2 małe litery (masz ${lower})` },
+    { ok: digits  >= 2, label: `2 cyfry (masz ${digits})` },
+    { ok: special >= 2, label: `2 znaki specjalne (masz ${special})` },
+    { ok: noConsec,     label: 'Brak 3 takich samych znaków pod rząd' },
+  ];
+  score = checks.filter(c => c.ok).length;
+  return { score, checks };
+}
+
+pwInput.addEventListener('input', () => {
+  const v = pwInput.value;
+  if (!v) {
+    bars.forEach(b => b.style.background = 'var(--border)');
+    strengthText.textContent = '';
+    return;
+  }
+  const { score, checks } = checkPassword(v);
+  const COLORS5 = ['#ef4444','#ef4444','#f59e0b','#3b82f6','#10b981','#10b981'];
+  const LABELS5 = ['Bardzo słabe','Słabe','Średnie','Dobre','Silne'];
+  bars.forEach((b, i) => {
+    b.style.background = i < score ? COLORS5[score] : 'var(--border)';
+  });
+  strengthText.textContent = LABELS5[Math.min(score, 4)] || '';
+  strengthText.style.color = COLORS5[score] || '';
+
+  // Show unmet criteria as hints
+  const unmet = checks.filter(c => !c.ok).map(c => c.label);
+  const hint = document.getElementById('pwHints');
+  if (hint) hint.innerHTML = unmet.length ? unmet.map(u => `<div style="color:var(--red-text);font-size:11px">✗ ${u}</div>`).join('') : '<div style="color:var(--green-text);font-size:11px">✓ Hasło spełnia wymagania</div>';
+});
+
+// Submit
+const form   = document.getElementById('registerForm');
+const btn    = document.getElementById('regBtn');
+const errBox = document.getElementById('regError');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errBox.style.display = 'none';
+
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const confirm  = document.getElementById('confirm').value;
+  const firstName = document.getElementById('first_name').value.trim();
+  const lastName  = document.getElementById('last_name').value.trim();
+
+  if (!email || !password) {
+    errBox.textContent = 'Email i hasło są wymagane.';
+    errBox.style.display = 'block';
+    return;
+  }
+  if (password.length < 8) {
+    errBox.textContent = 'Hasło musi mieć co najmniej 8 znaków.';
+    errBox.style.display = 'block';
+    return;
+  }
+  const { score, checks } = checkPassword(password);
+  if (score < 5) {
+    const unmet = checks.filter(c => !c.ok).map(c => c.label);
+    errBox.textContent = 'Hasło nie spełnia wymagań: ' + unmet.join(', ');
+    errBox.style.display = 'block';
+    return;
+  }
+  if (password !== confirm) {
+    errBox.textContent = 'Hasła nie są zgodne.';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  setLoading(btn, true);
+  try {
+    const data = await api.post('/auth/register', { email, password, first_name: firstName, last_name: lastName });
+    // Przekieruj na stronę weryfikacji
+    window.location.href = `verify.html?email=${encodeURIComponent(email)}`;
+  } catch (err) {
+    errBox.textContent = err.message || 'Błąd rejestracji.';
+    errBox.style.display = 'block';
+  } finally {
+    setLoading(btn, false);
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+name: CD — deploy na staging
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: true   # staging możemy anulować
+
+jobs:
+  deploy-staging:
+    name: Deploy → staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.${{ secrets.DOMAIN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dołącz do Tailscale VPN
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          args: --ephemeral --accept-routes
+
+      - name: Skonfiguruj SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_TAILSCALE_IP }} >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config <<EOF
+          Host staging-server
+            HostName ${{ secrets.SERVER_TAILSCALE_IP }}
+            User ${{ secrets.SERVER_USER }}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+          EOF
+
+      - name: Deploy staging
+        run: |
+          ssh staging-server << 'ENDSSH'
+            set -euo pipefail
+            cd /opt/budzetapp-staging
+
+            git pull origin dev
+
+            # Staging używa tylko docker-compose.yml (dev mode, nie prod)
+            docker compose build backend frontend
+            docker compose run --rm backend flask db upgrade
+            docker compose up -d --remove-orphans
+
+            sleep 5
+            HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/health)
+            echo "Staging health: HTTP $HTTP"
+          ENDSSH
